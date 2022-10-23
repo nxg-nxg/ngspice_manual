@@ -1,0 +1,89 @@
+html {
+    overflow: auto;
+    font-size: 16px;
+}
+body {
+    margin: 10rem;
+    overflow: hidden;
+    font-family: "consolas", "Courier", "Helvetica Neue", "Noto Sans JP";
+}
+/* Since the <code> fails in Google Translate, use the <span class="icode"> instead in paragraph */
+code {
+    font-family: "consolas", "Courier", "Helvetica Neue", sans-serif;
+    font-size: 1em;
+    color: #d63384;
+}
+.icode {
+    font-family: "consolas", "Courier", "Helvetica Neue", sans-serif;
+    font-size: 1em;
+    color: #d63384;
+}
+
+pre {
+    font-family: "consolas", "Courier", "Helvetica Neue", sans-serif;
+    font-size: 1.2em;
+    color: #d63384;
+    padding-left: 3rem;
+    overflow-x: auto;
+}
+
+table {
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+ol {
+    counter-reset: item;
+}
+ol li {
+    display: block;
+    line-height: 1.5rem;
+}
+ol li:before {
+    content: counters(item, ".") " ";
+    counter-increment: item;
+}
+
+.katex {
+    font-size: 1rem !important;
+}
+.katex-display .katex {
+    font-size: 1.2rem !important;
+}
+.katex .rule {
+    display: none !important;
+}
+
+.ta-c {
+    text-align: center;
+}
+.ta-c tr td {
+    text-align: center;
+}
+
+.ls-n {
+    list-style: none;
+}
+
+.rbox {
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    margin: 1rem;
+    padding: 1rem;
+    overflow-wrap: break-word;
+}
+
+@media only screen and (max-width: 800px) {
+    body {
+        margin: 2rem;
+    }
+    .katex-display > .katex {
+        max-width: 100%;
+        overflow-x: auto scroll;
+        overflow-y: hidden;
+        margin-left: 8%;
+        margin-right: 8%;
+    }
+}

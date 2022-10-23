@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>ngspice manual</title>
+        <link rel="stylesheet" type="text/css" href="./css/style.css" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css"
+            integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X"
+            crossorigin="anonymous"
+        />
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.js"
+            integrity="sha384-Qsn9KnoKISj6dI8g7p1HBlNpVx0I8p1SvlwOldgi3IorMle61nQy4zEahWYtljaz"
+            crossorigin="anonymous"
+        ></script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/auto-render.min.js"
+            integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+            crossorigin="anonymous"
+            onload="renderMathInElement(document.body);"
+        ></script>
+    </head>
+    <body>
+        <h1 id="2">Chapter 2<br />Circuit Description<br /><br /></h1>
+
+        <h2 id="2.1">2.1 General Structure and Conventions</h2>
+        <h3 id="2.1.1">2.1.1 Input file structure</h3>
+        <p>
+            The circuit to be analyzed is described to ngspice by a set of element instance lines,
+            which define the circuit topology and element instance values, and a set of control
+            lines, which define the model parameters and the run controls. All lines are assembled
+            in an input file to be read by ngspice. Two lines are essential:
+        </p>
+        <ul>
+            <li>
+                The first line in the input file must be the title, which is the only comment line
+                that does not need any special character in the first place.
+            </li>
+            <li>
+                The last line must be <span class="icode">.end</span>, plus a newline delimiter.
+            </li>
+        </ul>
+        <p>
+            The order of the remaining lines is alomost arbitrary (except, of course, that
+            continuation lines must immediately follow the line being continued,
+            <span class="icode">.subckt ... .ends</span>, <span class="icode">.if ... .endif</span>,
+            or <span class="icode">.control ... .endc</span> have to enclose their specific lines).
+            Leading white spaces in a line are ignored, as well as empty lines.
+        </p>
+        <p>
+            The lines described in sections 2.1 to 2.12 are typically used in the core of the input
+            file, outside of a <span class="icode">.control</span> section (see 16.4.3). An
+            exception is the <span class="icode">.include includefile</span> line (2.7) that may be
+            placed anywhere in the input file. The contents of
+            <span class="icode">includefile</span> will be inserted exactly in place of the
+            <span class="icode">.include</span> line.
+        </p>
+        <h3 id="2.1.2">2.1.2 Syntax check</h3>
+        <p>A very preliminary syntax check has been added to the input parser.</p>
+        <h4 id="2.1.2.1">2.1.2.1 Valid utf-8 characters</h4>
+        <p>
+            The input file will be scanned for valid utf-8 characters. If non-valid characters are
+            found, reading the input is stopped.
+        </p>
+        <h4 id="2.1.2.2">2.1.2.2 Special characters leading a line</h4>
+        <p>
+            If the first character in a netlist or .control line is one of
+            <span class="icode">=[]?()&amp;%$§\"!:</span>, then ngspice replaces it by
+            <span class="icode">*</span> and issues a warning. Command set
+            <span class="icode">strict_errorhandling</span>
+            will force ngspice to exit.
+        </p>
+        <h4 id="2.1.2.3">2.1.2.3 Dot command couple completion</h4>
+        <p>
+            Check for <span class="icode">.control ... .endc</span>,
+            <span class="icode">.subckt ... .ends</span>, <span class="icode">.if ... .endif</span>.
+        </p>
+        <h3 id="2.1.3">2.1.3 Circuit elements (device instances)</h3>
+        <p>
+            Each element in the circuit is a device instance specified by an instance line that
+            contains:
+        </p>
+        <ul>
+            <li>the element instance name,</li>
+            <li>the circuit nodes to which the element is connected,</li>
+            <li>
+                and the values of the parameters that determine the electrical characteristics of
+                the element.
+            </li>
+        </ul>
+        <p>
+            The first letter of the element instance name specifies the element type. The format for
+            the ngspice element types is given in the following manual chapters. In the rest of the
+            manual, the strings <span class="icode">XXXXXXX</span>,
+            <span class="icode">YYYYYYY</span>, and <span class="icode">ZZZZZZZ</span> denote
+            arbitrary alphanumeric strings.
+        </p>
+        <p>
+            For example, a resistor instance name must begin with the letter
+            <span class="icode">R</span> and can contain one or more characters. Hence,
+            <span class="icode">R</span>, <span class="icode">R1</span>,
+            <span class="icode">RSE</span>, <span class="icode">ROUT</span>, and
+            <span class="icode">R3AC2ZY</span> are valid resistor names. Details of each type of
+            device are supplied in a following section 3. Table 2.1 lists the element types
+            available in ngspice, sorted by their first letter.
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>First letter</th>
+                <th>Element description</th>
+                <th>Comments, links</th>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td>XSPICE code model</td>
+                <td>12<br />analog (12.2)<br />digital (12.4)<br />mixed signal (12.3)</td>
+            </tr>
+            <tr>
+                <td>B</td>
+                <td>Behavioral (arbitrary) source</td>
+                <td>5.1</td>
+            </tr>
+            <tr>
+                <td>C</td>
+                <td>Capacitor</td>
+                <td>3.3.6</td>
+            </tr>
+            <tr>
+                <td>D</td>
+                <td>Diode</td>
+                <td>7</td>
+            </tr>
+            <tr>
+                <td>E</td>
+                <td>Voltage-controlled voltage source (VCVS)</td>
+                <td>linear (4.2.2),<br />non-linear (5.2)</td>
+            </tr>
+            <tr>
+                <td>F</td>
+                <td>Current-controlled current source (CCCs)</td>
+                <td>linear (4.2.3)</td>
+            </tr>
+            <tr>
+                <td>G</td>
+                <td>Voltage-controlled current source (VCCS)</td>
+                <td>linear (4.2.1),<br />non-linear (5.3)</td>
+            </tr>
+            <tr>
+                <td>H</td>
+                <td>Current-controlled voltage source (CCVS)</td>
+                <td>linear (4.2.4)</td>
+            </tr>
+            <tr>
+                <td>I</td>
+                <td>Current source</td>
+                <td>4.1</td>
+            </tr>
+            <tr>
+                <td>J</td>
+                <td>Junction field effect transistor (JFET)</td>
+                <td>9</td>
+            </tr>
+            <tr>
+                <td>K</td>
+                <td>Coupled (Mutual) Inductors</td>
+                <td>3.3.12</td>
+            </tr>
+            <tr>
+                <td>K</td>
+                <td>Inductor</td>
+                <td>3.3.10</td>
+            </tr>
+            <tr>
+                <td>M</td>
+                <td>Metal oxide field effect transistor (MOSFET)</td>
+                <td>11,<br />BSIM3 (11.2.10),<br />BSIM4 (11.2.11)</td>
+            </tr>
+            <tr>
+                <td>N</td>
+                <td>Numerical device for GSS</td>
+                <td>14.2</td>
+            </tr>
+            <tr>
+                <td>O</td>
+                <td>Lossy transmission line</td>
+                <td>6.2</td>
+            </tr>
+            <tr>
+                <td>P</td>
+                <td>Coupled multiconductor line (CPL)</td>
+                <td>6.4.2</td>
+            </tr>
+            <tr>
+                <td>Q</td>
+                <td>Bipolar junction transistor (BJT)</td>
+                <td>8</td>
+            </tr>
+            <tr>
+                <td>R</td>
+                <td>Resistor</td>
+                <td>3.3.1</td>
+            </tr>
+            <tr>
+                <td>S</td>
+                <td>Switch (voltage-controlled)</td>
+                <td>3.3.15</td>
+            </tr>
+            <tr>
+                <td>T</td>
+                <td>Lossless transmission line</td>
+                <td>6.1</td>
+            </tr>
+            <tr>
+                <td>U</td>
+                <td>Uniformly distributed RC line</td>
+                <td>6.3</td>
+            </tr>
+            <tr>
+                <td>V</td>
+                <td>Voltage source</td>
+                <td>4.1</td>
+            </tr>
+            <tr>
+                <td>W</td>
+                <td>Switch (current-controlled)</td>
+                <td>3.3.15</td>
+            </tr>
+            <tr>
+                <td>X</td>
+                <td>Subcircuit</td>
+                <td>2.5.3</td>
+            </tr>
+            <tr>
+                <td>Y</td>
+                <td>Single lossy transmission line (TXL)</td>
+                <td>6.4.1</td>
+            </tr>
+            <tr>
+                <td>Z</td>
+                <td>Metal semiconductor field effect transistor (MESFET)</td>
+                <td>10</td>
+            </tr>
+        </table>
+
+        <h3 id="2.1.4">2.1.4 Some naming conventions</h3>
+        <p>
+            Fields on a line are separated by one or more blanks, a comma, an equal (<span
+                class="icode"
+                >=</span
+            >) sign, or a left or right parenthesis; extra spaces are ignored. A line may be
+            continued by entering a <span class="icode">+</span> (plus) in column 1 of the following
+            line; ngspice continues reading beginning with column 2. A name field must begin with a
+            letter (A through Z) and cannot contain any delimiters. A number field may be an integer
+            field (12, -44), a floating point field (3.14159), either an integer or floating point
+            number followed by an integer exponent (1e-14, 2.65e3), or either an integer or a
+            floating point number followed by one of the following scale factors:
+        </p>
+        <table border class="ta-c">
+            <tr>
+                <th>Suffix</th>
+                <th>Name</th>
+                <th>Factor</th>
+            </tr>
+            <tr>
+                <td>T</td>
+                <td>Tera</td>
+                <td>$10^{12}$</td>
+            </tr>
+            <tr>
+                <td>G</td>
+                <td>Giga</td>
+                <td>$10^9$</td>
+            </tr>
+            <tr>
+                <td>Meg</td>
+                <td>Mega</td>
+                <td>$10^6$</td>
+            </tr>
+            <tr>
+                <td>K</td>
+                <td>Kilo</td>
+                <td>$10^3$</td>
+            </tr>
+            <tr>
+                <td>mil</td>
+                <td>Mil</td>
+                <td>$25.4 \times 10^{-6}$</td>
+            </tr>
+            <tr>
+                <td>m</td>
+                <td>milli</td>
+                <td>$10^{-3}$</td>
+            </tr>
+            <tr>
+                <td>u</td>
+                <td>micro</td>
+                <td>$10^{-6}$</td>
+            </tr>
+            <tr>
+                <td>n</td>
+                <td>nano</td>
+                <td>$10^{-9}$</td>
+            </tr>
+            <tr>
+                <td>p</td>
+                <td>pico</td>
+                <td>$10^{-12}$</td>
+            </tr>
+            <tr>
+                <td>f</td>
+                <td>femto</td>
+                <td>$10^{-15}$</td>
+            </tr>
+        </table>
+
+        <p>
+            Letters immediately following a number that are not scale factors are ignored, and
+            letters immediately following a scale factor are ignored. Hence, 10, 10V, 10Volts, and
+            10Hz all represent the same number, and M, MA, MSec, and MMhos all represent the same
+            scale factor. Note that 1000, 1000.0, 1000Hz, 1e3, 1.0e3, 1kHz, and 1k all represent the
+            same number. Note that <span class="icode">M</span> or
+            <span class="icode">m</span> denote <span class="icode">milli</span>, i.e. $10^{-3}$.
+            Suffix <span class="icode">meg</span> has to be used for $10^6$. If compatibility mode
+            LT (16.14.6) is set, ngspice will accept the RKM notation for entering resistance or
+            capacitance values, e.g. 2K7 or 100R.
+        </p>
+        <p>
+            Nodes names may be arbitrary character strings and are case insensitive, if ngspice is
+            used in batch mode (16.4.1). If in interactive (16.4.2) or control (16.4.3) mode, node
+            names may either be plain numbers or arbitrary character strings,
+            <strong>not</strong> starting with a number. The ground node must be named
+            <span class="icode">0</span> (zero). For compatibility reason
+            <span class="icode">gnd</span> is accepted as ground node, and will internally be
+            treated as a global node and be converted to <span class="icode">0</span>. If this is
+            not feasible, you may switch the conversion off by setting
+            <span class="icode">set no_auto_gnd</span> in one of the configuration files spinit or
+            .spiceinit. <em>Each circuit has to have a ground node (gnd or 0)!</em> Note the
+            difference in ngspice where the nodes are treated as character strings and not evaluated
+            as numbers, thus <span class="icode">0</span> and <span class="icode">00</span> are
+            distinct nodes in ngspice but not in SPICE2.
+        </p>
+        <p>Ngspice requires that the following topological constraints are satisfied:</p>
+        <ul>
+            <li>
+                The circuit cannot contain a loop of voltage sources and/or inductors and cannot
+                contain a cut-set of current sources and/or capacitors.
+            </li>
+            <li>Each node in the circuit must have a dc path to ground.</li>
+            <li>
+                Every node must have at least two connections except for transmission line nodes (to
+                permit unterminated transmission lines) and MOSFET substrate nodes (which have two
+                internal connections anyway).
+            </li>
+        </ul>
+        <h2 id="2.2">2.2 Dot commands</h2>
+        <p>
+            This section summarizes all dot commands available in ngspice, with links to their
+            detailed presentation, in alphabetical order. Control section (or interactive) commands
+            are listed and explained in chapter 17.5.
+        </p>
+        <ul class="ls-n">
+            <li><code>.AC</code> start an ac simulation (15.3.1).</li>
+            <li><code>.CONTROL</code> start a .control section (16.4.3).</li>
+            <li>
+                <code>.CSPARAM</code> define parameter(s) made available in a control section
+                (2.11).
+            </li>
+            <li><code>.DC</code> start a dc simulation (15.3.2).</li>
+            <li><code>.DISTO</code> start a distortion analysis simulation (15.3.3).</li>
+            <li><code>.ELSE</code> conditional branching in the netlist (2.13).</li>
+            <li><code>.ELSEIF</code> conditional branching in the netlist (2.13).</li>
+            <li><code>.END</code> end of the netlist (2.3.2).</li>
+            <li><code>.ENDC</code> end of the .control section (16.4.3).</li>
+            <li><code>.ENDIF</code> conditional branching in the netlist (2.13).</li>
+            <li><code>.ENDS</code> end of subcircuit definition (2.5.2).</li>
+            <li><code>.FOUR</code> Fourier analysis of transient simulation output (15.6.4).</li>
+            <li><code>.FUNC</code> define a function (2.10).</li>
+            <li><code>.GLOBAL</code> define global nodes (2.6).</li>
+            <li><code>.IC</code> set initial conditions (15.2.2).</li>
+            <li><code>.IF</code> conditional branching in the netlist (2.13).</li>
+            <li><code>.INCLUDE</code> include part of the netlist (2.7).</li>
+            <li><code>.LIB</code> include a library (2.8).</li>
+            <li><code>.MEAS</code> measurements during the simulation (15.4).</li>
+            <li><code>.MODEL</code> list of device model parameters (2.4).</li>
+            <li><code>.NODESET</code> set initial conditions (15.2.1).</li>
+            <li><code>.NOISE</code> start a noise simulation (15.3.4).</li>
+            <li><code>.OP</code> start an operating point simulation (15.3.5).</li>
+            <li><code>.OPTIONS</code> set simulator options (15.1).</li>
+            <li><code>.PARAM</code> define parameter(s) (2.9).</li>
+            <li><code>.PLOT</code> printer plot during batch simulation (15.6.3).</li>
+            <li><code>.PRINT</code> tabular listing during batch simulation (15.6.2).</li>
+            <li>
+                <code>.PROBE</code> save device currents, voltages and differential voltages
+                (15.6.5).
+            </li>
+            <li><code>.PSS</code> start a periodic steady state analysis (15.3.12).</li>
+            <li><code>.PZ</code> start a pole-zero analysis simulation (15.3.6).</li>
+            <li><code>.SAVE</code> name simulation result vectors to be saved (15.6.1).</li>
+            <li><code>.SENS</code> start a sensitivity analysis (15.3.7).</li>
+            <li><code>.SP</code> S parameter analysis (15.3.8).</li>
+            <li><code>.SUBCKT</code> start of subcircuit definitions (2.5).</li>
+            <li><code>.TEMP</code> set the ciruit temperature (2.12).</li>
+            <li><code>.TF</code> start a transfer function analysis (15.3.9).</li>
+            <li><code>.TITLE</code> title of the netlist (2.3.1).</li>
+            <li><code>.TRAN</code> start a transient simulation (15.3.10).</li>
+            <li><code>.WIDTH</code> width of printer plot (15.6.7).</li>
+        </ul>
+        <h2 id="2.3">2.3 Basic lines</h2>
+        <h3 id="2.3.1">2.3.1 .TITLE line</h3>
+        <p>Examples:</p>
+        <pre>
+POWER AMPLIFIER CIRCUIT
+* additional lines following
+*...
+Test of CAM cell
+* additional lines following
+*...
+</pre
+        >
+        <p>
+            The title line must be the first in the input file. Its contents are printed verbatim as
+            the heading for each section of output.
+        </p>
+        <p>
+            As an alternative, you may place a
+            <span class="icode">.TITLE &lt;any title&gt;</span> line anywhere in your input deck.
+            The first line of your input deck will be overridden by the contents of this line
+            following the .TITLE statement.
+        </p>
+        <p>.TITLE line example:</p>
+        <pre>
+******************************
+* additional lines following
+*...
+. TITLE Test of CAM cell
+* additional lines following
+*...
+</pre
+        >
+        <p>will internally be replaced by</p>
+        <p>Internal input deck:</p>
+        <pre>
+Test of CAM cell
+* additional lines following
+*...
+* TITLE Test of CAM cell
+* additional lines following
+*...
+</pre
+        >
+        <h3 id="2.3.2">2.3.2 .END Line</h3>
+        <p>Examples:</p>
+        <pre>.end</pre>
+        <p>
+            The <span class="icode">.end</span> line must always be the last in the input file. Note
+            that the period is an integral part of the name.
+        </p>
+        <h3 id="2.3.3">2.3.3 Comments</h3>
+        <p>General Form:</p>
+        <pre>* &lt;any comment&gt;</pre>
+        <p>Examples:</p>
+        <pre>
+* RF=1K Gain should be 100
+* Check open-loop gain and phase margin
+</pre
+        >
+        <p>
+            The asterisk in the first column indicates that this line is a comment line. Comment
+            lines may be placed anywhere in the circuit description.
+        </p>
+        <h3 id="2.3.4">2.3.4 End-of-line comments</h3>
+        <p>General Form:</p>
+        <pre>
+&lt;any command&gt; $ &lt;any comment&gt;
+&lt;any command&gt; ; &lt;any comment&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+RF2=1K $ Gain should be 100
+C1=10p ; Check open-loop gain and phase margin
+.param n1=1 // new value
+</pre
+        >
+        <p>
+            ngspice supports comments that begin with double characters
+            <span class="icode">$ </span> (dollar plus space) or <span class="icode">//</span>. For
+            readability you should precede each comment character with a space. ngspice will accept
+            the single character <span class="icode">$</span>.
+        </p>
+        <p>
+            Please note that the <span class="icode">$</span> character is not a valid end-of-line
+            comment delimiter, if the PSPICE compatibility mode (16.14.5) has been chosen. Then
+            <span class="icode">$</span> becomes an ordinary character.
+        </p>
+        <h3 id="2.3.5">2.3.5 Continuation lines</h3>
+        <p>General Form:</p>
+        <pre>
+&lt;any command&gt;
++ &lt;continuation of any command&gt; ; some comment
++ &lt;further continuation of any command&gt;
+</pre
+        >
+        <p>
+            If input lines get overly long, they may be split into two or more lines (e.g. for
+            better readability). Internally they will be merged into a single line. Each follow-up
+            line starts with character <span class="icode">+</span> plus additional space. Follw-up
+            lines have to follow immediately after each other. End-of-line comments will be ignored.
+            The following lines do not allow using continuation lines:
+            <span class="icode">.title</span>, <span class="icode">.lib</span>, and
+            <span class="icode">.include</span>.
+        </p>
+        <h2 id="2.4">2.4 .MODEL Device Models</h2>
+        <p>General form:</p>
+        <pre>.model mname type (pname1=pval1 pname2=pval2 ... )</pre>
+        <p>Examples:</p>
+        <pre>.model MOD1 npn (bf=50 is=1e-13 vbf=50)</pre>
+        <p>
+            Most simple circuit elements typically require only a few parameter values. However,
+            some devices (semiconductor devices in particular) that are included in ngspice require
+            many parameter values. Often, many devices in a circuit are defined by the same set of
+            device model parameters. For these reasons, a set of device model parameters is defined
+            on a separate <span class="icode">.model</span> line and assigned a unique model name.
+            The device element lines in ngspice then refer to the model name.
+        </p>
+        <p>
+            For these more complex device types, each device element line contains the device name,
+            the nodes the device is connected to, and the device model name. In addition, other
+            optional parameters may be specified for some devices: geometric factors and an initial
+            condition (see the following section on Transistors (8 to 11) and Diodes (7) for more
+            details). <span class="icode">mname</span> in the above is the model name, and type is
+            one of the following fifteen types:
+        </p>
+
+        <table border>
+            <tr>
+                <th>Code</th>
+                <th>Model Type</th>
+            </tr>
+            <tr>
+                <td>R</td>
+                <td>Semiconductor resistor model</td>
+            </tr>
+            <tr>
+                <td>C</td>
+                <td>Semiconductor capacitor model</td>
+            </tr>
+            <tr>
+                <td>L</td>
+                <td>Inductor model</td>
+            </tr>
+            <tr>
+                <td>SW</td>
+                <td>Voltage controlled switch</td>
+            </tr>
+            <tr>
+                <td>CSW</td>
+                <td>Current controlled switch</td>
+            </tr>
+            <tr>
+                <td>URC</td>
+                <td>Uniform distributed RC model</td>
+            </tr>
+            <tr>
+                <td>LTRA</td>
+                <td>Lossy transmission line model</td>
+            </tr>
+            <tr>
+                <td>D</td>
+                <td>Diode model</td>
+            </tr>
+            <tr>
+                <td>NPN</td>
+                <td>NPN BJT model</td>
+            </tr>
+            <tr>
+                <td>PNP</td>
+                <td>PNP BJT model</td>
+            </tr>
+            <tr>
+                <td>NJF</td>
+                <td>N-channel JFET model</td>
+            </tr>
+            <tr>
+                <td>PJF</td>
+                <td>P-channel JFET model</td>
+            </tr>
+            <tr>
+                <td>NMOS</td>
+                <td>N-channel MOSFET model</td>
+            </tr>
+            <tr>
+                <td>PMOS</td>
+                <td>P-channel MOSFET model</td>
+            </tr>
+            <tr>
+                <td>NMF</td>
+                <td>N-channel MESFET model</td>
+            </tr>
+            <tr>
+                <td>PMF</td>
+                <td>P-channel MESFET model</td>
+            </tr>
+            <tr>
+                <td>VDMOS</td>
+                <td>Power MOS model</td>
+            </tr>
+        </table>
+
+        <p>
+            Parameter values are defined by appending the parameter name followed by an equal sign
+            and the parameter value. Model parameters that are not given a value are assigned the
+            default values given below for each model type. Models are listed in the section on each
+            device along with the description of device element lines. Model parameters and their
+            default values are given in Chapt. 31.
+        </p>
+        <h2 id="2.5">2.5 .SUBCKT Subcircuits</h2>
+        <p>
+            A subcircuit that consists of ngspice elements can be defined and referenced in a
+            fashion similar to device models. Subcircuits are the way ngspice implements
+            hierarchical modeling, but this is not entirely true because each subcircuit instance is
+            flattened during parsing, and thus ngspice is not a hierarchical simulator.
+        </p>
+        <p>
+            The subcircuit is defined in the input deck by a grouping of element cards delimited by
+            the <span class="icode">.subckt</span> and the <span class="icode">.ends</span> cards
+            (or the keywords defined by the <span class="icode">substart</span> and
+            <span class="icode">subend</span> options (see 17.7)); the program then automatically
+            inserts the defined group of elements wherever the subcircuit is referenced. Instances
+            of subcircuits within a larger circuit are defined through the use of an instance card
+            that begins with the letter <span class="icode">X</span>. A complete example of all
+            three of these cards follows:
+        </p>
+        <p>Example:</p>
+        <pre>
+* The following is the instance card:
+*
+xdiv1 10 7 0 vdivide
+
+* The following are the subcircuit definition cards:
+*
+.subckt vdivide 1 2 3
+r1 1 2 10K
+r2 2 3 5K
+.ends
+</pre
+        >
+        <p>
+            The above specifies a subcircuit with ports numbered <span class="icode">1</span>,
+            <span class="icode">2</span> and <span class="icode">3</span>:
+        </p>
+        <ul>
+            <li>
+                Resistor <span class="icode">R1</span> is connected from port
+                <span class="icode">1</span> to port <span class="icode">2</span>, and has value 10
+                kOhms.
+            </li>
+            <li>
+                Resistor <span class="icode">R2</span> is connected from port
+                <span class="icode">2</span> to port <span class="icode">3</span>, and has value 5
+                kOhms.
+            </li>
+        </ul>
+        <p>
+            The instance card, when placed in an ngspice deck, will cause subcircuit port
+            <span class="icode">1</span> to be equated to circuit node
+            <span class="icode">10</span>, while port <span class="icode">2</span> will be equated
+            to node <span class="icode">7</span> and port <span class="icode">3</span> will equated
+            to node <span class="icode">0</span>.
+        </p>
+        <p>
+            There is no limit on the size or complexity of subcircuits, and subcircuits may contain
+            other subcircuits. An example of subcircuit usage is given in Chapt. 21.6.
+        </p>
+        <h3 id="2.5.1">2.5.1 .SUBCKT Line</h3>
+        <p>General form:</p>
+        <pre>.SUBCKT subnam N1 &lt;N2 N3 ...&gt;</pre>
+        <p>Examples:</p>
+        <pre>.SUBCKT OPAMP 1 2 3 4</pre>
+        <p>
+            A circuit definition is begun with a <span class="icode">.SUBCKT</span> line.
+            <strong>subnam</strong> is the subcircuit name, and N1, N2, ... are the external nodes,
+            which cannot be zero. The group of element lines that immediately follow the
+            <span class="icode">.SUBCKT</span> line define the subcircuit. The last line in a
+            subcircuit definition is the <span class="icode">.ENDS</span> line (see below). Control
+            lines may not appear within a subcircuit definition; however, subcircuit definitions may
+            contain anything else, including other subcircuit definitions, device models, and
+            subcircuit calls (see below). Note that any device models or subcircuit definitions
+            included as part of a subcircuit definition are strictly local (i.e., such models and
+            definitions are not known outside the subcircuit definition).
+        </p>
+        <p>
+            Also, any element nodes not included on the <span class="icode">.SUBCKT</span> line are
+            strictly local, with the exception of 0 (ground) that is always global. If you use
+            parameters, the <span class="icode">.SUBCKT</span> line will be extended (see 2.9.3).
+        </p>
+        <h3 id="2.5.2">2.5.2 .ENDS Line</h3>
+        <p>General form:</p>
+        <pre>.ENDS &lt;SUBNAM&gt;</pre>
+
+        <p>Examples:</p>
+        <pre>.ENDS OPAMP</pre>
+        <p>
+            The <span class="icode">.ENDS</span> line must be the last one for any subcircuit
+            definition. The subcircuit name, if included, indicates which subcircuit definition is
+            being terminated; if omitted, all subcircuits being defined are terminated. The name is
+            needed only when nested subcircuit definitions are being made.
+        </p>
+        <h3 id="2.5.3">2.5.3 Subcircuit Calls</h3>
+        <p>General form:</p>
+        <pre>XYYYYYYY N1 &lt;N2 N3 ...&gt; SUBNAM</pre>
+        <p>Examples:</p>
+        <pre>X1 2 4 17 3 1 MULTI</pre>
+        <p>
+            Subcircuits are used in ngspice by specifying pseudo-elements beginning with the letter
+            X, followed by the circuit nodes to be used in expanding the subcircuit. If you use
+            parameters, the subcircuit call will be modified (see 2.9.3).
+        </p>
+        <h2 id="2.6">2.6 .GLOBAL</h2>
+        <p>General form:</p>
+        <pre>.GLOBAL nodename</pre>
+        <p>Examples:</p>
+        <pre>.GLOBAL gnd vcc</pre>
+        <p>
+            Nodes defined in the <span class="icode">.GLOBAL</span> statement are available to all
+            circuit and subcircuit blocks independently from any circuit hierarchy. After parsing
+            the circuit, these nodes are accessible from top level.
+        </p>
+        <h2 id="2.7">2.7 .INCLUDE</h2>
+        <p>General form:</p>
+        <pre>.INCLUDE filename</pre>
+        <p>Examples:</p>
+        <pre>.INCLUDE /users/spice/common/bsim3-param.mod</pre>
+        <p>
+            Frequently, portions of circuit descriptions will be reused in several input files,
+            particularly with common models and subcircuits. In any ngspice input file, the
+            <span class="icode">.INCLUDE</span> line may be used to copy some other file as if that
+            second file appeared in place of the <span class="icode">.INCLUDE</span> line in the
+            original file.
+        </p>
+        <p>
+            There is no restriction on the file name imposed by ngspice beyond those imposed by the
+            local operating system.
+        </p>
+        <h2 id="2.8">2.8 .LIB</h2>
+        <p>General form:</p>
+        <pre>.LIB filename libname</pre>
+        <p>Examples:</p>
+        <pre>.LIB /users/spice/common/mosfets.lib mos1</pre>
+        <p>
+            The <span class="icode">.LIB</span> statement allows including library descriptions into
+            the input file. Inside the *.lib file a library <span class="icode">libname</span> will
+            be selected. The statements of each library inside the *.lib file are enclosed in
+            <span class="icode">.LIB libname &lt;...&gt; .ENDL</span> statements.
+        </p>
+        <p>
+            If the compatibility mode (16.14) is set to <span class="icode">ps</span> by
+            <span class="icode">set ngbehavior=ps</span> (17.7) in
+            <span class="icode">spinit</span> (16.5) or
+            <span class="icode">.spiceinit</span> (16.6), then a simplified syntax
+            <span class="icode">.LIB filename</span> is available: a warning is issued and
+            <span class="icode">filename</span> is simply included as described in Chapt. 2.7.
+        </p>
+        <h2 id="2.9">2.9 .PARAM Parametric netlists</h2>
+        <p>
+            Ngspice allows for the definition of parametric attributes in the netlists. This is an
+            enhancement of the ngspice front-end that adds arithmetic functionality to the circuit
+            description language.
+        </p>
+        <h3 id="2.9.1">2.9.1 .param line</h3>
+        <p>General form:</p>
+        <pre>.param &lt;ident&gt; = &lt;expr&gt; &lt;ident&gt; = &lt;expr&gt; ...</pre>
+        <p>Examples:</p>
+        <pre>
+.param pippo=5
+.param po=6 pp=7.8 pap={AGAUSS(pippo, 1, 1.67)}
+.param pippp={pippo + pp}
+.param p={pp}
+.param pop='pp+p'
+</pre
+        >
+        <p>
+            This line assigns numerical values to identifiers. More than one assignment per line is
+            possible using a separating space. Parameter identifier names must begin with an
+            alphabetic character. The other characters must be either alphabetic, a number, or
+            <span id="icode">! # $ % [ ] _</span> as special characters. The variables
+            <strong>time</strong>, <strong>temper</strong>, and <strong>hertz</strong> (see 5.1.1)
+            are not valid identifier names. Other restrictions on naming conventions apply as well,
+            see 2.9.6.
+        </p>
+        <p>
+            The <span class="icode">.param</span> lines inside subcircuits are copied per call, like
+            any other line. All assignments are executed sequentially through the expanded circuit.
+            Before its first use, a parameter name must have been assigned a value. Expressions
+            defining a parameter should be put within braces <span class="icode">{p+p2}</span>, or
+            alternatively within single quotes <span class="icode">'AGAUSS(pippo, 1, 1.67)'</span>.
+            An assignment cannot be self-referential, something like
+            <span class="icode">.param pip = 'pip+3'</span> will not work.
+        </p>
+        <p>
+            The current ngspice version does not always need quotes or braces in expressions,
+            especially when spaces are used sparingly. However, it is recommended to do so, as the
+            following examples demonstrate.
+        </p>
+        <pre>
+.param a = 123 * 3 b = sqrt (9) $ doesn't work , a &lt;= 123
+.param a = '123 * 3' b = sqrt (9) $ ok.
+.param c = a + 123 $ won't work
+.param c = 'a + 123' $ ok.
+.param c = a+123 $ ok.
+</pre
+        >
+        <h3 id="2.9.2">2.9.2 Brace expressions in circuit elements:</h3>
+        <p>General form:</p>
+        <pre>{ &lt;expr&gt; }</pre>
+        <p>
+            Examples:<br />
+            These are allowed in <span class="icode">.model</span> lines and in device lines. A
+            SPICE number is a floating point number with an optional scaling suffix, immediately
+            glued to the numeric tokens (see Chapt. 2.9.5). Brace expressions (<span class="icode"
+                >{..}</span
+            >) cannot be used to parameterize node names or parts of names. All identifiers used
+            within an <span class="icode">&lt;expr&gt;</span> must have known values at the time
+            when the line is evaluated, else an error is flagged.
+        </p>
+        <h3 id="2.9.3">2.9.3 Subcircuit parameters</h3>
+        <p>General form:</p>
+        <pre>
+.subckt &lt;identn&gt; node node ... &lt;ident&gt;=&lt;value&gt; &lt;ident&gt;=&lt;value&gt; ...
+        </pre>
+        <p>Examples:</p>
+        <pre>
+.subckt myfilter in out rval=100k cval=100nF
+        </pre>
+        <p>
+            &lt;identn&gt; is the name of the subcircuit given by the user.
+            <span class="icode">node</span> is an integer number or an identifier, for one of the
+            external nodes. The first
+            <span class="icode">&lt;ident&gt;=&lt;value&gt;</span> introduces an optional section of
+            the line. Each <span class="icode">&lt;ident&gt;</span> is a formal parameter, and each
+            <span class="icode">&lt;value&gt;</span> is either a SPICE number or a brace expression.
+            Inside the <span class="icode">.subckt ... .ends</span> context, each formal parameter
+            may be used like any identifier that was defined on a
+            <span class="icode">.param</span> control line. The
+            <span class="icode">&lt;value&gt;</span> parts are default values of the parameters.
+        </p>
+        <p>The syntax of a subcircuit call (invocation) is:</p>
+        <p>General form:</p>
+        <pre>
+X&lt;name&gt; node node ... &lt;identn&gt; &lt;ident&gt;=&lt;value&gt; &lt;ident&gt;=&lt;value&gt; ...
+        </pre>
+        <p>Examples:</p>
+        <pre>X1 input output myfilter rval=1k</pre>
+        <p>
+            Here <span class="icode">&lt;name&gt;</span> is the symbolic name given to that instance
+            of the subcircuit, <span class="icode">&lt;identn&gt;</span> is the name of a subcircuit
+            defined beforehand. <span class="icode">node node ...</span> is the list of actual nodes
+            where the subcircuit is connected. <span class="icode">&lt;value&gt;</span> is either a
+            SPICE number or a brace expression <span class="icode">{ &lt;expr&gt; }</span>.
+        </p>
+        <p>Subcircuit example with parameters:</p>
+        <pre>
+* Param-example
+.param amplitude= 1V
+*
+.subckt myfilter in out rval=100k cval=100nF
+Ra in p1 {2* rval}
+Rb p1 out {2* rval}
+C1 p1 0 {2* cval}
+Ca in p2 { cval}
+Cb p2 out { cval}
+R1 p2 0 { rval}
+.ends myfilter
+*
+X1 input output myfilter rval=1k cval=1n
+V1 input 0 AC { amplitude }
+.end
+</pre
+        >
+        <h3 id="2.9.4">2.9.4 Symbol scope</h3>
+        <p>
+            <em>All subcircuit and model names are considered global and must be unique.</em> The
+            <span class="icode">.param</span> symbols that are defined outside of any
+            <span class="icode">.subckt</span> ... <span class="icode">.ends</span> section are
+            global. Inside such a section, the pertaining params: symbols and any
+            <span class="icode">.param</span> assignments are considered local: they mask any global
+            identical names, until the <span class="icode">.ends</span> line is encountered. You
+            cannot reassign to a global number inside a <span class="icode">.subckt</span>, a local
+            copy is created instead. Scope nesting works up to a level of 10. For example, if the
+            main circuit calls A that has a formal parameter xx, A calls B that has a param. xx, and
+            B calls C that also has a formal param. xx, there will be three versions of
+            <span class="icode">xx</span> in the symbol table but only the most local one -
+            belonging to C - is visible.
+        </p>
+        <h3 id="2.9.5">2.9.5 Syntax of expressions</h3>
+        <pre>&lt;expr&gt; ( optional parts within [...] )</pre>
+        <p>An expression may be one of:</p>
+        <pre>
+&lt;atom&gt; where &lt;atom&gt; is either a spice number or an identifier
+&lt;unary-operator&gt; &lt;atom&gt;
+&lt;function-name&gt; ( &lt;expr&gt; [ , &lt;expr&gt; ...] )
+&lt;atom&gt; &lt;binary-operator&gt; &lt;expr&gt;
+( &lt;expr&gt; )
+</pre
+        >
+        <p>
+            As expected, atoms, built-in function calls and stuff within parentheses are evaluated
+            before the other operators. The operators are evaluated following a list of precedence
+            close to the one of the C language. For equal precedence binary ops, evaluation goes
+            left to right. Functions operate on real values only!
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Operator</th>
+                <th>Alias</th>
+                <th>Precedence</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><span class="icode">-</span></td>
+                <td></td>
+                <td>1</td>
+                <td>unary -</td>
+            </tr>
+            <tr>
+                <td><span class="icode">!</span></td>
+                <td></td>
+                <td>1</td>
+                <td>unary not</td>
+            </tr>
+            <tr>
+                <td><span class="icode">**</span></td>
+                <td><span class="icode">^</span></td>
+                <td>2</td>
+                <td>power, like pwr</td>
+            </tr>
+            <tr>
+                <td><span class="icode">*</span></td>
+                <td></td>
+                <td>3</td>
+                <td>multiply</td>
+            </tr>
+            <tr>
+                <td><span class="icode">/</span></td>
+                <td></td>
+                <td>3</td>
+                <td>divide</td>
+            </tr>
+            <tr>
+                <td><span class="icode">%</span></td>
+                <td></td>
+                <td>3</td>
+                <td>modulo</td>
+            </tr>
+            <tr>
+                <td><span class="icode">\</span></td>
+                <td></td>
+                <td>3</td>
+                <td>integer divide</td>
+            </tr>
+            <tr>
+                <td><span class="icode">+</span></td>
+                <td></td>
+                <td>4</td>
+                <td>add</td>
+            </tr>
+            <tr>
+                <td><span class="icode">-</span></td>
+                <td></td>
+                <td>4</td>
+                <td>subtract</td>
+            </tr>
+            <tr>
+                <td><span class="icode">==</span></td>
+                <td></td>
+                <td>5</td>
+                <td>equality</td>
+            </tr>
+            <tr>
+                <td><span class="icode">!=</span></td>
+                <td><span class="icode">&lt;&gt;</span></td>
+                <td>5</td>
+                <td>non-equality</td>
+            </tr>
+            <tr>
+                <td><span class="icode">&lt;=</span></td>
+                <td></td>
+                <td>5</td>
+                <td>less or equal</td>
+            </tr>
+            <tr>
+                <td><span class="icode">&gt;=</span></td>
+                <td></td>
+                <td>5</td>
+                <td>greater or equal</td>
+            </tr>
+            <tr>
+                <td><span class="icode">&lt;</span></td>
+                <td></td>
+                <td>5</td>
+                <td>less than</td>
+            </tr>
+            <tr>
+                <td><span class="icode">&gt;</span></td>
+                <td></td>
+                <td>5</td>
+                <td>greater than</td>
+            </tr>
+            <tr>
+                <td><span class="icode">&amp;&amp;</span></td>
+                <td></td>
+                <td>6</td>
+                <td>boolean and</td>
+            </tr>
+            <tr>
+                <td><span class="icode">||</span></td>
+                <td></td>
+                <td>7</td>
+                <td>boolean or</td>
+            </tr>
+            <tr>
+                <td><span class="icode">c?x:y</span></td>
+                <td></td>
+                <td>8</td>
+                <td>ternary operator</td>
+            </tr>
+        </table>
+
+        <p>
+            The number zero is used to represent boolean False. Any other number represents boolean
+            True. The result of logical operators is 1 or 0. An example input file is shown below:
+        </p>
+        <p>Example input file with logical operators:</p>
+        <pre>
+* Logical operators
+v1or 1 0 {1 || 0}
+v1and 2 0 {1 &amp;&amp; 0}
+v1not 3 0 {! 1}
+v1mod 4 0 {5 % 3}
+v1div 5 0 {5 \ 3}
+v0not 6 0 {! 0}
+.control
+op
+print allv
+.endc
+.end
+</pre
+        >
+
+        <table border class="ta-c">
+            <tr>
+                <th>Built-in function</th>
+                <th>Notes</th>
+            </tr>
+            <tr>
+                <td><span class="icode">sqrt(x)</span></td>
+                <td><span class="icode">y = sqrt(x)</span></td>
+            </tr>
+            <tr>
+                <td><span class="icode">sin(x), cos(x), tan(x)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">sinh(x), cosh(x), tanh(x)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">asin(x), acos(x), atan(x)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">asinh(x), acosh(x), atanh(x)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">arctan(x)</span></td>
+                <td><span class="icode">atan(x)</span>, kept for compatibility</td>
+            </tr>
+            <tr>
+                <td><span class="icode">exp(x)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">ln(x), log(x)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">abs(x)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">nint(x)</span></td>
+                <td>Nearest integer, half integers towards even</td>
+            </tr>
+            <tr>
+                <td><span class="icode">int(x)</span></td>
+                <td>Nearest integer rounded towards 0</td>
+            </tr>
+            <tr>
+                <td><span class="icode">floor(x)</span></td>
+                <td>Nearest integer rounded towards $-\infty$</td>
+            </tr>
+            <tr>
+                <td><span class="icode">ceil(x)</span></td>
+                <td>Nearest integer rounded towards $+\infty$</td>
+            </tr>
+            <tr>
+                <td><span class="icode">pow(x,y)</span></td>
+                <td>x raised to the power of y (pow from C runtime library)</td>
+            </tr>
+            <tr>
+                <td><span class="icode">pwr(x,y)</span></td>
+                <td><span class="icode">pow(fabs(x), y)</span></td>
+            </tr>
+            <tr>
+                <td><span class="icode">min(x,y)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">max(x,y)</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><span class="icode">sgn(x)</span></td>
+                <td>
+                    <span class="icode">1.0 for x &gt; 0, 0.0 for x == 0, -1.0 for x &lt; 0</span>
+                </td>
+            </tr>
+            <tr>
+                <td><span class="icode">ternary_fcn(x, y, z)</span></td>
+                <td><span class="icode">x ? y : z</span></td>
+            </tr>
+            <tr>
+                <td><span class="icode">gauss(nom, rvar, sigma)</span></td>
+                <td>
+                    nominal value plus variation drawn from Gaussian <br />
+                    distribution with mean 0 and standard deviation rvar <br />
+                    (relative to nominal), divided by sigma
+                </td>
+            </tr>
+            <tr>
+                <td><span class="icode">agauss(nom, avar, sigma)</span></td>
+                <td>
+                    nominal value plus variation drawn from Gaussian <br />
+                    distribution with mean 0 and standard deviation avar <br />
+                    (absolute), divided by sigma
+                </td>
+            </tr>
+            <tr>
+                <td><span class="icode">unif(nom, rvar)</span></td>
+                <td>
+                    nominal value plus relative variation (to nominal)<br />
+                    uniformly distributed between +/-rvar
+                </td>
+            </tr>
+            <tr>
+                <td><span class="icode">aunif(nom, avar)</span></td>
+                <td>
+                    nominal value plus absolute variation uniformly <br />
+                    distributed between +/-avar
+                </td>
+            </tr>
+            <tr>
+                <td><span class="icode">limit(nom, avar)</span></td>
+                <td>
+                    nominal value +/-avar, depending on random number<br />
+                    in <span class="icode">[-1, 1[</span> being <span class="icode">&gt; 0</span> or
+                    <span class="icode">&lt; 0</span>
+                </td>
+            </tr>
+        </table>
+
+        <p>The scaling suffixes (any decorative alphanumeric string may follow):</p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>suffix</th>
+                <th>value</th>
+            </tr>
+            <tr>
+                <td>g</td>
+                <td>1e9</td>
+            </tr>
+            <tr>
+                <td>meg</td>
+                <td>1e6</td>
+            </tr>
+            <tr>
+                <td>k</td>
+                <td>1e3</td>
+            </tr>
+            <tr>
+                <td>m</td>
+                <td>1e-3</td>
+            </tr>
+            <tr>
+                <td>u</td>
+                <td>1e-6</td>
+            </tr>
+            <tr>
+                <td>n</td>
+                <td>1e-9</td>
+            </tr>
+            <tr>
+                <td>p</td>
+                <td>1e-12</td>
+            </tr>
+            <tr>
+                <td>f</td>
+                <td>1e-15</td>
+            </tr>
+        </table>
+
+        <p>
+            Note: there are intentional redundancies in expression syntax, e.g.
+            <span class="icode">x^y</span>, <span class="icode">x**y</span> and
+            <span class="icode">pwr(x,y)</span> all have nearly the same result.
+        </p>
+
+        <h3 id="2.9.6">2.9.6 Reserved words</h3>
+        <p>
+            In addition to the above function names and to the verbose operators (
+            <span class="icode">not and or div mod</span> ), other words are reserved and cannot be
+            used as parameter names:
+            <span class="icode">
+                or, defined, sqr, sqrt, sin, cos, exp, ln, log, log10, arctan, abs, pwr, time,
+                temper, hertz </span
+            >.
+        </p>
+
+        <h3 id="2.9.7">2.9.7 A word of caution on the three ngspice expression parsers</h3>
+        <p>
+            The historical parameter notation using &amp; as the first character of a line as
+            equivalence to <span class="icode">.param</span>. is deprecated and will be removed in a
+            coming release.
+        </p>
+        <p>
+            Confusion may arise in ngspice because of its multiple numerical expression features.
+            The <span class="icode">.param</span> lines and the brace expressions (see Chapt.
+            <a href="./ch2.html#2.10">2.10</a>) are evaluated in the frontend, that is, just after
+            the subcircuit expansion. (Technically, the X lines are kept as comments in the expanded
+            circuit so that the actual parameters can be correctly substituted). Therefore, after
+            the netlist expansion and before the internal data setup, all number attributes in the
+            circuit are known constants. However, there are circuit elements in Spice that accept
+            arithmetic expressions <i>not</i> evaluated at this point, but only later during circuit
+            analysis. These are the arbitrary current and voltage sources (B-sources, 5), as well as
+            E- and G-sources and R-, L-, or C-devices. The syntactic difference is that
+            `compile-time` expressions are within braces, but `run-time` expressions have no braces.
+            To make things more complicated, the back-end ngspice scripting language accepts
+            arithmetic/ logic expressions that operate only on its own scalar or vector data sets
+            (17.2). Please see Chapt. <a href="./ch2.html#2.14">2.14</a>.
+        </p>
+        <p>
+            It would be desirable to have the same expression syntax, operator and function set, and
+            precedence rules, for the three contexts mentioned above. In the current Numparam
+            implementation, that goal is not achieved.
+        </p>
+
+        <h2 id="2.10">2.10 .FUNC</h2>
+        <p>
+            This keyword defines a function. The syntax of the expression is the same as for a
+            <span class="icode">.param</span> (<a href="./ch2.html#2.9.5">2.9.5</a>).
+        </p>
+        <p>General form:</p>
+        <pre>
+.func &lt;ident&gt; { &lt;expr&gt; }
+.func &lt;ident&gt; = { &lt;expr&gt; }</pre
+        >
+        <p>Examples:</p>
+        <pre>
+.func icos (x) {cos(x) - 1}
+.func f(x,y) {x*y}
+.func foo(a,b) = {a + b}
+</pre
+        >
+        <p>
+            <span class="icode">.func</span> will initiate a replacement operation. After reading
+            the input files, and before parameters are evaluated, all occurrences of the
+            <span class="icode">icos(x)</span> function will be replaced by
+            <span class="icode">cos(x)-1</span>. All occurrences of
+            <span class="icode">f(x,y)</span> will be replaced by <span class="icode">x*y</span>.
+            Function statements may be nested to a depth of t.b.d..
+        </p>
+
+        <h2 id="2.11">2.11 .CSPARAM</h2>
+        <p>
+            Create a constant vector (see 17.8.2) from a parameter in
+            <span class="icode">plot</span> (17.3) const.
+        </p>
+        <p>General form:</p>
+        <pre>.csparam &lt;ident&gt; = &lt;expr&gt;</pre>
+        <p>Examples:</p>
+        <pre>
+.param pippo=5
+.param pp=6
+.csparam pippp={pippo + pp}
+.param p={pp}
+.csparam pap='pp+p'
+</pre
+        >
+        <p>
+            In the example shown, vectors pippp, and pap are added to the constants that already
+            reside in <span class="icode">plot const</span>, having length one and real values.
+            These vectors are generated during circuit parsing and thus cannot be changed later
+            (same as with ordinary parameters). They may be used in ngspice scripts and
+            <span class="icode">.control</span> sections (see Chapt. 17).
+        </p>
+        <p>
+            The use of <span class="icode">.csparam</span> is still experimental and has to be
+            tested. A simple usage is shown below.
+        </p>
+        <pre>
+* test csparam
+.param TEMPS = 27
+.csparam newt = {3*TEMPS}
+.csparam mytemp = '2 + TEMPS'
+.control
+echo $&newt $&mytemp
+.endc
+.end
+</pre
+        >
+        <h2 id="2.12">2.12 .TEMP</h2>
+        <p>Sets the circuit temperature in degrees Celsius.</p>
+        <p>General form:</p>
+        <pre>.temp value</pre>
+        <p>Examples:</p>
+        <pre>.temp 27</pre>
+        <p>
+            This card overrides the circuit temperature given in an
+            <span class="icode">.option</span> line (15.1.1).
+        </p>
+
+        <h2 id="2.13">2.13 .IF Condition-Controlled Netlist</h2>
+        <p>
+            A simple <span class="icode">.IF-.ELSE(IF)</span> block allows condition-controlling of
+            the netlist. <strong>boolean expression</strong> is any expression according to Chapt.
+            2.9.5 that evaluates parameters and returns a boolean 1 or 0. The netlist block in
+            between the <span class="icode">.if ... .endif</span> statements may contain device
+            instances or <span class="icode">.model</span> cards that are selected according to the
+            logic condition.
+        </p>
+        <p>General form:</p>
+        <pre>
+.if( boolean expression )
+...
+.elseif ( boolean expression )
+...
+.else
+...
+.endif
+</pre
+        >
+        <p>Example 1:</p>
+        <pre>
+* device instance in IF - ELSE block
+.param ok=0 ok2=1
+v1 1 0 1
+R1 1 0 2
+.if (ok && ok2)
+R11 1 0 2
+.else
+R11 1 0 0.5 $ <-- selected
+.endif
+</pre
+        >
+        <p>Example 2:</p>
+        <pre>
+* .model in IF - ELSE block
+.param m0=0 m1=1
+M1 1 2 3 4 N1 W=1 L=0.5
+.if(m0==1)
+.model N1 NMOS level=49 Version=3.1
+.elseif (m1==1)
+.model N1 NMOS level=49 Version=3.2.4 $ &lt;-- selected
+.else
+.model N1 NMOS level=49 Version=3.3.0
+.endif
+</pre
+        >
+        <p>
+            Nesting of <span class="icode">.IF-.ELSE(IF)-.ENDIF</span> blocks is possible. Several
+            <span class="icode">.elseif</span> (but of course only one
+            <span class="icode">.else</span>)are allowed per block (please see example
+            <span class="icode">ngspice/tests/regression/misc/ifelseif.cir</span>). However some
+            restrictions apply, as the following netlist components are not supported within the
+            <span class="icode">.IF-.ENDIF</span> block: <span class="icode">.SUBCKT</span>,
+            <span class="icode">.INC</span>, <span class="icode">.LIB</span>, and
+            <span class="icode">.PARAM</span>.
+        </p>
+
+        <h2 id="2.14">2.14 Parameters, functions, expressions, and command scripts</h2>
+        <p>
+            In ngspice there are several ways to describe functional dependencies. In fact there are
+            three independent function parsers, being active before, during, and after the
+            simulation. So it might be due to have a few words on their interdependence.
+        </p>
+        <h3 id="2.14.1">2.14.1 Parameters</h3>
+        <p>
+            Parameters (Chapt. <a href="./ch2.html#2.9.1">2.9.1</a>) and functions, either defined
+            within the <span class="icode">.param</span> statement or with the .func statement
+            (Chapt. <a href="./ch2.html#2.10">2.10</a>) are evaluated <b>before</b> any simulation
+            is started, that is during the setup of the input and the circuit. Therefore these
+            statements may not contain any simulation output (voltage or current vectors), because
+            it is simply not yet available. The syntax is described in Chapt.
+            <a href="./ch2.html#2.9.5">2.9.5</a>. During the circuit setup all functions are
+            evaluated, all parameters are replaced by their resulting numerical values. Thus it will
+            not be possible to get feedback from a later stage (during or after simulation) to
+            change any of the parameters.
+        </p>
+        <h3 id="2.14.2">2.14.2 Nonlinear sources</h3>
+        <p>
+            During the simulation, the B source (Chapt. 5) and their associated E and G sources, as
+            well as some devices (R, C, L) may contain expressions. These expressions may contain
+            parameters from above (evaluated immediately upon ngspice start up), numerical data,
+            predefined functions, but also node voltages and branch currents resulting from the
+            simulation. The source or device values are continuously updated <b>during</b> the
+            simulation. Therefore the sources are powerful tools to define non-linear behavior, you
+            may even create new `devices` by yourself. Unfortunately the expression syntax (see
+            Chapt. 5.1) and the predefined functions may deviate from the ones for parameters listed
+            in <a href="./ch2.html#2.9.1">2.9.1</a>.
+        </p>
+        <h3 id="2.14.3">2.14.3 Control commands, Command scripts</h3>
+        <p>
+            Commands, as described in detail in Chapt. 17.5, may be used interactively, but also as
+            a command script enclosed in <span class="icode">.control ... .endc</span> lines. The
+            scripts may contain expressions (see Chapt. 17.2). The expressions may work upon
+            simulation output vectors (of node voltages, branch currents), as well as upon
+            predefined or user defined vectors and variables, and are invoked <b>after</b> the
+            simulation. Parameters from 2.9.1 defined by the
+            <span class="icode">.param</span> statement are not allowed in these expressions.
+            However you may define such parameters with <span class="icode">.csparam</span> (<a
+                href="./ch2.html#2.11"
+                >2.11</a
+            >). Again the expression syntax (see Chapt. 17.2) will deviate from the one for
+            parameters or B sources listed in <a href="./ch2.html#2.9.1">2.9.1</a> and 5.1.
+        </p>
+        <p>
+            If you want to use parameters from 2.9.1 inside your control script, you may use
+            <span class="icode">.csparam</span> (<a href="./ch2.html#2.11">2.11</a>) or apply a
+            trick by defining a voltage source with the parameter as its value, and then have it
+            available as a vector (e.g. after a transient simulation) with a then constant output
+            (the parameter). A feedback from here back into parameters (<a href="./ch2.html#2.14.1"
+                >2.14.1</a
+            >) is never possible. Also you cannot access non-linear sources of the preceding
+            simulation. However you may start a first simulation inside your control script, then
+            evaluate its output using expressions, change some of the element or model parameters
+            with the <span class="icode">alter</span> and
+            <span class="icode">altermod</span> statements (see Chapt. 17.5.3) and then
+            automatically start a new simulation.
+        </p>
+        <p>
+            Expressions and scripting are powerful tools within ngspice, and we will enhance the
+            examples given in Chapt. 21 continuously to describe these features.
+        </p>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        { left: "$$", right: "$$", display: true },
+                        { left: "$", right: "$", display: false },
+                    ],
+                });
+            });
+        </script>
+        <script>
+            window.onload = function () {
+                const katexs_obj = document.getElementsByClassName("katex");
+                Array.from(katexs_obj).filter((k) => k.setAttribute("translate", "no"));
+                const icode_obj = document.getElementsByClassName("icode");
+                Array.from(icode_obj).filter((k) => k.setAttribute("translate", "no"));
+                const pre_obj = document.getElementsByTagName("pre");
+                Array.from(pre_obj).filter((k) => k.setAttribute("translate", "no"));
+            };
+        </script>
+    </body>
+</html>
