@@ -1,0 +1,3 @@
+# Ngspice User's Manual HTML edition
+
+This document is an HTML version of the [official PDF manual](http://sourceforge.net/projects/ngspice/files/ng-spice-rework/37/ngspice-37-manual.pdf). Official PDF manuals are released under the Creative Commons Attribution Share-Alike (CC-BY-SA) v4.0 license. These HTML manuals are released under the terms of the CC-BY-SA v4.0 license. If you find typos or errors, please create GitHub Issue.
