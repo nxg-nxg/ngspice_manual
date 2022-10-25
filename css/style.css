@@ -59,20 +59,36 @@ ol li:before {
 .ta-c {
     text-align: center;
 }
-.ta-c tr td {
+.ta-c tr td,
+.ta-c tr th {
     text-align: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 
 .ls-n {
     list-style: none;
 }
 
-.rbox {
+.rbox-me {
     background-color: #f8f9fa;
     border-radius: 0.5rem;
     margin: 1rem;
     padding: 1rem;
     overflow-wrap: break-word;
+}
+.rbox {
+    background-color: #ffffff;
+    border: solid;
+    border-radius: 0.5rem;
+    margin: 1rem;
+    padding: 1rem;
+    overflow-wrap: break-word;
+}
+
+.footnote {
+    font-size: 0.8rem;
+    padding-left: 1rem;
 }
 
 @media only screen and (max-width: 800px) {

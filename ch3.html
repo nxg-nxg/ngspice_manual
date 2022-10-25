@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>ngspice manual</title>
+        <link rel="stylesheet" type="text/css" href="./css/style.css" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css"
+            integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X"
+            crossorigin="anonymous"
+        />
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.js"
+            integrity="sha384-Qsn9KnoKISj6dI8g7p1HBlNpVx0I8p1SvlwOldgi3IorMle61nQy4zEahWYtljaz"
+            crossorigin="anonymous"
+        ></script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/auto-render.min.js"
+            integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+            crossorigin="anonymous"
+            onload="renderMathInElement(document.body);"
+        ></script>
+    </head>
+    <body>
+        <h1 id="3">Chapter 3<br /><br />Circuit Elements and Models</h1>
+        <br />
+        <p>
+            Data fields that are enclosed in less-than and greater-than signs (
+            <span class="icode">&lt;&gt;</span>) are optional. All indicated punctuation
+            (parentheses, equal signs, etc.) is optional but indicate the presence of any delimiter.
+            Further, future implementations may require the punctuation as stated. A consistent
+            style adhering to the punctuation shown here makes the input easier to understand. With
+            respect to branch voltages and currents, ngspice uniformly uses the associated reference
+            convention (current flows in the direction of voltage drop).
+        </p>
+        <h2 id="3.1">3.1 About netlists, device instances, models and model parameters</h2>
+        <p>
+            The input to ngspice is a netlist, which lists all circuit elements, their interconnects
+            and model parameters.
+        </p>
+        <p>Netlist example of a simple bipolar amplifier:</p>
+        <pre>
+bipolar amplifier
+
+R3 vcc intc 10k
+R1 vcc intb 68k
+R2 intb 0 10k
+Cout out intc 10u
+Cin intb in 10u
+RLoad out 0 100 k
+Q1 intc intb 0 BC546B
+
+VCC vcc 0 5
+Vin in 0 dc 0 ac 1 sin(0 1m 500)
+
+.model BC546B npn ( IS=7.59E-15 VAF=73.4 BF=480 IKF=0.0962 NE=1.2665
++ ISE=3.278E-15 IKR=0.03 ISC=2.00E-13 NC=1.2 NR=1 BR=5 RC=0.25 CJC=
++ FC=0.5 MJC=0.33 VJC=0.65 CJE=1.25E-11 MJE=0.55 VJE=0.65 TF=4.26E-
++ ITF=0.6 VTF=3 XTF=20 RB=100 IRB=0.0001 RBM=10 RE=0.5 TR=1.50E-07)
+.end
+</pre
+        >
+        <p>
+            After the first line, which is always a title line only, the netlist starts. Each line
+            here is a device instance (except for lines starting with a dot
+            <span class="icode">.</span>). We have simple circuit elements that consist of a single
+            line only, e.g. resistors like <span class="icode">R3</span>. In its simplest
+            implementation, the resistor model does not need any model parameters except for the
+            resistance value (same for capacitors like <span class="icode">Cout</span>). Netlist
+            lines like <span class="icode">R3 vcc intc 10k</span> are called instance lines, as each
+            line is the representation of an instance of a generic model hard-coded into the ngspice
+            simulator (here: resistor). <span class="icode">R3</span> denotes the device name. Its
+            first character <span class="icode">R</span> denotes a resistor. The next two tokens
+            <span class="icode">vcc intc</span> are the two nodes of the resistor, 10k is the
+            resistance value. Equal node names on different devices denote a connection between
+            these nodes.
+        </p>
+        <p>
+            A more complex device is described by the instance line
+            <span class="icode">Q1 intc intb 0 BC546B</span>. <span class="icode">Q</span> denotes a
+            bipolar transistor, <span class="icode">intc intb 0</span> are the three nodes
+            collector, base, and emitter. <span class="icode">BC546B</span> is the name of a model
+            parameter set, named after a real transistor and describing (together with the
+            implemented bipolar transistor model) its electrical behavior. The associated model
+            parameters are given in the line
+            <span class="icode">.model BC546B npn (IS=7.59E-15 ...)</span>. This is not an instance
+            line, because starting with a dot. It contains the model parameters as supplied by the
+            device manufacturer or by people having them extracted from the electrical behavior and
+            data sheet (to be found e.g. on his or her web pages). BC546B is the name of the model
+            parameter set and relates it to the device instance. npn is the type of the device. The
+            parameters (name=value) are given in brackets.
+        </p>
+        <p>
+            The instance <span class="icode">Q1</span>... requires model parameters. For a quick
+            test one may do without device maker's model parameters.
+        </p>
+        <p>Simplified bipolar transistor instance and model parameter set:</p>
+        <pre>
+Q1 intc intb 0 defaultmod
+.model defaultmod npn
+</pre
+        >
+        <p>
+            If you enter the bipolar transistor instance as shown above, you make use of a default
+            model parameter set supplied by ngspice. defaultmod is an arbitrary name. This procedure
+            models a generic bipolar transistor, not resembling any commercial device. The default
+            parameter values may be assessed by the command showmod <span class="icode">Q1</span>.
+        </p>
+        <p>
+            You will get more information on devices, instances and models in the following chapters
+            3.3 to 12.
+        </p>
+        <h2 id="3.2">3.2 General options</h2>
+        <h3 id="3.2.1">3.2.1 Paralleling devices with multiplier m</h3>
+        <p>
+            When it is needed to simulate several devices of the same kind in parallel, use the
+            <span class="icode">m</span>
+            (parallel multiplier) instance parameter available for the devices listed in Table 3.1.
+            This multiplies the value of the element's matrix stamp with m's value. The netlist
+            below shows how to correctly use the parallel multiplier:
+        </p>
+        <p>Multiple device example:</p>
+        <pre>
+d1 2 0 mydiode m=10
+d01 1 0 mydiode
+d02 1 0 mydiode
+d03 1 0 mydiode
+d04 1 0 mydiode
+d05 1 0 mydiode
+d06 1 0 mydiode
+d07 1 0 mydiode
+d08 1 0 mydiode
+d09 1 0 mydiode
+d10 1 0 mydiode
+...</pre
+        >
+        <p>
+            The d1 instance connected between nodes 2 and 0 is equivalent to the 10 parallel devices
+            <span class="icode">d01-d10</span> connected between nodes 1 and 0.
+        </p>
+        <p>The following devices support the multiplier m:</p>
+        <table border class="ta-c">
+            <caption>
+                Table 3.1: ngspice elements supporting multiplier `m`
+            </caption>
+            <tr>
+                <th>First letter</th>
+                <th>Element description</th>
+            </tr>
+            <tr>
+                <td>C</td>
+                <td>Capacitor</td>
+            </tr>
+            <tr>
+                <td>D</td>
+                <td>Diode</td>
+            </tr>
+            <tr>
+                <td>F</td>
+                <td>Current-controlled current source (CCCs)</td>
+            </tr>
+            <tr>
+                <td>G</td>
+                <td>Voltage-controlled current source (VCCS)</td>
+            </tr>
+            <tr>
+                <td>I</td>
+                <td>Current source</td>
+            </tr>
+            <tr>
+                <td>J</td>
+                <td>Junction field effect transistor (JFET)</td>
+            </tr>
+            <tr>
+                <td>L</td>
+                <td>Inductor</td>
+            </tr>
+            <tr>
+                <td>M</td>
+                <td>Metal oxide field effect transistor (MOSFET)</td>
+            </tr>
+            <tr>
+                <td>Q</td>
+                <td>Bipolar junction transistor (BJT)</td>
+            </tr>
+            <tr>
+                <td>R</td>
+                <td>Resistor</td>
+            </tr>
+            <tr>
+                <td>X</td>
+                <td>Subcircuit (for details see below)</td>
+            </tr>
+            <tr>
+                <td>Z</td>
+                <td>Metal semiconductor field effect transistor (MESFET)</td>
+            </tr>
+        </table>
+        <p>
+            When the <span class="icode">X</span> line (e.g.
+            <span class="icode">x1 a b sub1 m=5</span>) contains the token
+            <span class="icode">m=value</span> (as shown) or
+            <span class="icode">m=expression</span>, subcircuit invocation is done in a special way.
+            If an instance line of the subcircuit sub1 contains any of the elements shown in table
+            <a href="./ch3.html#3.1">3.1</a>, then these elements are instantiated with the
+            additional parameter <span class="icode">m</span> (in this example having the value 5).
+            If such an element already has an <span class="icode">m</span> multiplier parameter, the
+            element <span class="icode">m</span> is multiplied with the m derived from the
+            <span class="icode">X</span> line. This works recursively, meaning that if a subcircuit
+            contains another subcircuit (a nested <span class="icode">X</span> line), then the
+            latter <span class="icode">m</span> parameter will be multiplied by the former one, and
+            so on.
+        </p>
+        <p>Example 1:</p>
+        <pre>
+.param madd=6
+X1 a b sub1 m=5
+.subckt sub1 a1 b1
+Cs1 a1 b1 C=5p m='madd-2'
+.ends</pre
+        >
+        <p>
+            In example 1, the capacitance between nodes a and b will be
+            <span class="icode">C = 5pF*(madd-2)*5 = 100pF</span>.
+        </p>
+        <p>Example 2:</p>
+        <pre>
+.param madd=4
+X1 a b sub1 m=3
+.subckt sub1 a1 b1
+X2 a1 b1 sub2 m='madd-2'
+.ends
+.subckt sub2 a2 b2
+Cs2 a2 b2 3p m=2
+.ends</pre
+        >
+        <p>
+            In example 2, the capacitance between nodes a and b is
+            <span class="icode">C = 3pF*2*(madd-2)*3 = 36pF</span>.
+        </p>
+        <p>
+            Using m may fail to correctly describe geometrical properties for real devices like MOS
+            transistors.
+        </p>
+        <pre>M1 d g s nmos W=0.3u L=0.18u m=20</pre>
+        <p>is probably not be the same as</p>
+        <pre>M1 d g s nmos W=6u L=0.18u</pre>
+        <p>
+            because the former may suffer from small width (or edge) effects, whereas the latter is
+            simply a wide transistor.
+        </p>
+        <h3 id="3.2.2">3.2.2 Instance and model parameters</h3>
+        <p>
+            The simple device example below consists of two lines: The device is defined on the
+            instance line, starting with <span class="icode">Lload ...</span>: The first letter
+            determines the device type (an inductor in this example). Following the device name are
+            two nodes 1 and 2, then the inductance value 1u is set. The model name ind1 is a
+            connection to the respective model line. Finally we have a parameter on the instance
+            line, together with its value <span class="icode">dtemp=5</span>. Parameters on an
+            instance line are called instance parameters.
+        </p>
+        <p>
+            The model line starts with the token <span class="icode">.model</span>, followed by the
+            model name, the model type and at least one model parameter, here
+            <span class="icode">tc1=0.001</span>. There are complex models with more than 100 model
+            parameters.
+        </p>
+        <pre>
+Lload 1 2 1u ind1 dtemp=5
+.MODEL ind1 L tc1=0.001</pre
+        >
+        <p>
+            Instance parameters are listed in each of the following device descriptions. Model
+            parameters sometimes are given below as well, for complex models like the BSIM
+            transistor models, they are available in the model makers
+            <a href="http://ngspice.sourceforge.net/literature.html">documentation</a>. Instance
+            parameters may also be placed in the .model line. Thus they are recognized by each
+            device instance referring to that model. Their values may be overridden for a specific
+            instance of a device by placing them additionally onto its instance line.
+        </p>
+        <h3 id="3.2.3">3.2.3 Model binning</h3>
+        <p>
+            Binning is a kind of range partitioning for geometry dependent models like MOSFET's. The
+            purpose is to cover larger geometry ranges (Width and Length) with higher accuracy than
+            the model built-in geometry formulas. Each size range described by the additional model
+            parameters LMIN, LMAX, WMIN and WMAX has its own model parameter set. These model cards
+            are defined by a number extension, like <span class="icode">nch.1</span>. ngspice has an
+            algorithm to choose the right model card by the requested W and L.
+        </p>
+        <p>This is implemented for BSIM3 (11.2.10) and BSIM4 (11.2.11) models.</p>
+        <h3 id="3.2.4">3.2.4 Initial conditions</h3>
+        <p>
+            Two different forms of initial conditions may be specified for some devices. The first
+            form is included to improve the dc convergence for circuits that contain more than one
+            stable state. If a device is specified <span class="icode">OFF</span>, the dc operating
+            point is determined with the terminal voltages for that device set to zero. After
+            convergence is obtained, the program continues to iterate to obtain the exact value for
+            the terminal voltages. If a circuit has more than one dc stable state, the
+            <span class="icode">OFF</span> option can be used to force the solution to correspond to
+            a desired state. If a device is specified <span class="icode">OFF</span> when in reality
+            the device is conducting, the program still obtains the correct solution (assuming the
+            solutions converge) but more iterations are required since the program must
+            independently converge to two separate solutions.
+        </p>
+        <p>
+            The <span class="icode">.NODESET</span> control line (see Chapt. 15.2.1) serves a
+            similar purpose as the <span class="icode">OFF</span> option. The
+            <span class="icode">.NODESET</span> option is easier to apply and is the preferred means
+            to aid convergence. The second form of initial conditions are specified for use with the
+            transient analysis. These are true `initial conditions` as opposed to the convergence
+            aids above. See the description of the <span class="icode">.IC</span> control line
+            (Chapt. 15.2.2) and the <span class="icode">.TRAN</span> control line (Chapt. 15.3.10)
+            for a detailed explanation of initial conditions.
+        </p>
+        <h2 id="3.3">3.3 Elementary Devices</h2>
+        <h3 id="3.3.1">3.3.1 Resistors</h3>
+        <p>General form:</p>
+        <pre>
+RXXXXXXX n+ n- &lt;resistance|r=&gt;value &lt;ac=val&gt; &lt;m=val&gt;
++ &lt;scale=val&gt; &lt;temp=val&gt; &lt;dtemp=val&gt; &lt;tc1=val&gt; &lt;tc2=val&gt;
++ &lt;noisy=0|1&gt;</pre
+        >
+        <p>Examples:</p>
+        <pre>
+R1 1 2 100
+RC1 12 17 1K
+R2 5 7 1K ac=2K
+RL 1 4 2K m=2
+</pre
+        >
+        <p>
+            Ngspice has a fairly complex model for resistors. It can simulate both discrete and
+            semiconductor resistors. Semiconductor resistors in ngspice means: resistors described
+            by geometrical parameters. So, do not expect detailed modeling of semiconductor effects.
+        </p>
+        <p>
+            <span class="icode">n+</span> and <span class="icode">n-</span> are the two element
+            nodes, <span class="icode">value</span> is the resistance (in ohms) and may be positive
+            or negative<sup><a href="./ch3.html#fn1">1</a></sup> but not zero.
+        </p>
+        <p id="fn1" class="footnote">
+            [1] A negative resistor modeling an active element can cause convergence problems,
+            please avoid it.
+        </p>
+
+        <p class="rbox">
+            Simulating small valued resistors: If you need to simulate very small resistors (0.001
+            Ohm or less), you should use CCVS (transresistance). It is less efficient but improves
+            overall numerical accuracy. Consider a small resistance as a large conductance.
+        </p>
+        <p>
+            Ngspice can assign a resistor instance a different value for AC analysis, specified
+            using the <span class="icode">ac</span> keyword. This value must not be zero as
+            described above. The AC resistance is used in AC analysis only (neither Pole-Zero nor
+            Noise). If you do not specify the <span class="icode">ac</span> parameter, it is
+            defaulted to <span class="icode">value</span>.
+        </p>
+        <p>Ngspice calculates the nominal resistance as</p>
+
+        <p>
+            $$ \begin{aligned} R_{nom} &= \frac{\rm VALUE_{scale}}{m} \\ \cr R_{acnom} &= \frac{\rm
+            \ _{ac} \ _{scale}}{m} \tag{3.1} \end{aligned} $$
+        </p>
+
+        <p>
+            If you want to simulate temperature dependence of a resistor, you need to specify its
+            temperature coefficients, using a <span class="icode">.model</span> line or as instance
+            parameters, like in the examples below:
+        </p>
+        <p>Examples:</p>
+        <pre>
+RE1 1 2 800 newres dtemp=5
+.MODEL newres R tc1=0.001
+RE2 a b 1.4k tc1=2m tc2=1.4u
+RE3 n1 n2 1Meg tce=700m
+</pre
+        >
+        <p>
+            The temperature coefficients <span class="icode">tc1</span> and
+            <span class="icode">tc2</span> describe a quadratic temperature dependence (see equation
+            1.6) of the resistance. If given in the instance line (the
+            <span class="icode">R...</span> line) their values will override the
+            <span class="icode">tc1</span> and <span class="icode">tc2</span> of the
+            <span class="icode">.model</span> line (3.3.3). Ngspice has an additional temperature
+            model equation 3.2 parameterized by tce given in model or instance line. If all
+            parameters are given (quadratic and exponential) the exponential temperature model is
+            chosen.
+        </p>
+
+        $$ \begin{aligned} R(T) = R(T_0) \left[ 1.01^{TCE \cdot (T-T_0)} \right] \tag{3.2}
+        \end{aligned} $$
+
+        <p>
+            where $T$ is the circuit temperature, $T_0$ is the nominal temperature, and $TCE$ is the
+            exponential temperature coefficients.
+        </p>
+
+        <p>
+            Instance temperature is useful even if resistance does not vary with it, since the
+            thermal noise generated by a resistor depends on its absolute temperature. Resistors in
+            ngspice generates two different noises: thermal and flicker. While thermal noise is
+            always generated in the resistor, to add a flicker noise<sup
+                ><a href="./ch3.html#fn2">2</a></sup
+            >
+            source you have to add a <span class="icode">.model</span> card defining the flicker
+            noise parameters. It is possible to simulate resistors that do not generate any kind of
+            noise using the <span class="icode">noisy (or noise)</span> keyword and assigning zero
+            to it, as in the following example:
+        </p>
+        <p id="fn2" class="footnote">[2] Flicker noise can be used to model carbon resistors.</p>
+        <p>Example:</p>
+        <pre>Rmd 134 57 1.5k noisy=0</pre>
+        <p>
+            If you are interested in temperature effects or noise equations, read the next section
+            on semiconductor resistors.
+        </p>
+        <h3 id="3.3.2">3.3.2 Semiconductor Resistors</h3>
+        <p>General form:</p>
+        <pre>
+RXXXXXXX n+ n- &lt;value&gt; &lt;mname&gt; &lt;l=length&gt; &lt;w=width&gt;
++ &lt;temp=val&gt; &lt;dtemp=val&gt; &lt;m=val&gt; &lt;ac=val&gt; &lt;scale=val&gt;
++ &lt;noisy=0|1&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+RLOAD 2 10 10K
+RMOD 3 7 RMODEL L=10u W=1u
+</pre
+        >
+        <p>
+            This is the more general form of the resistor presented before (<a
+                href="./ch3.html#3.3.1"
+                >3.3.1</a
+            >) and allows the modeling of temperature effects and for the calculation of the actual
+            resistance value from strictly geometric information and the specifications of the
+            process. If <span class="icode">value</span> is specified, it overrides the geometric
+            information and defines the resistance. If mname is specified, then the resistance may
+            be calculated from the process information in the model
+            <span class="icode">mname</span> and the given <span class="icode">length</span> and
+            <span class="icode">width</span>. If <span class="icode">value</span> is not specified,
+            then <span class="icode">mname</span> and <span class="icode">length</span> must be
+            specified. If <span class="icode">width</span> is not specified, then it is taken from
+            the default width given in the model.
+        </p>
+        <p>
+            The (optional) <span class="icode">temp</span> value is the temperature at which this
+            device is to operate, and overrides the temperature specification on the
+            <span class="icode">.option</span> control line and the value specified in
+            <span class="icode">dtemp</span>.
+        </p>
+        <h3 id="3.3.3">3.3.3 Semiconductor Resistor Model (R)</h3>
+        <p>
+            The resistor model consists of process-related device data that allow the resistance to
+            be calculated from geometric information and to be corrected for temperature. The
+            parameters available are as follows:
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Units</th>
+                <th>Default</th>
+                <th>Example</th>
+            </tr>
+            <tr>
+                <td>TC1</td>
+                <td>first order temperature coeff.</td>
+                <td>$\rm \Omega / ^\circ C$</td>
+                <td>0.0</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>TC2</td>
+                <td>second order temperature coef</td>
+                <td>$\rm \Omega / ^\circ C^2$</td>
+                <td>0.0</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>RSH</td>
+                <td>sheet resistance</td>
+                <td>$\rm \Omega / \Box$</td>
+                <td>-</td>
+                <td>50</td>
+            </tr>
+            <tr>
+                <td>DEFW</td>
+                <td>default width</td>
+                <td>$\rm m$</td>
+                <td>1e-6</td>
+                <td>2e-6</td>
+            </tr>
+            <tr>
+                <td>NARROW</td>
+                <td>narrowing due to side etching</td>
+                <td>$\rm m$</td>
+                <td>0.0</td>
+                <td>1e-7</td>
+            </tr>
+            <tr>
+                <td>SHORT</td>
+                <td>shortening due to side etching</td>
+                <td>$\rm m$</td>
+                <td>0.0</td>
+                <td>1e-7</td>
+            </tr>
+            <tr>
+                <td>TNOM</td>
+                <td>parameter measurement temperature</td>
+                <td>$\rm ^\circ C$</td>
+                <td>27</td>
+                <td>50</td>
+            </tr>
+            <tr>
+                <td>KF</td>
+                <td>flicker noise coefficient</td>
+                <td>-</td>
+                <td>0.0</td>
+                <td>1e-25</td>
+            </tr>
+            <tr>
+                <td>AF</td>
+                <td>flicker noise exponent</td>
+                <td></td>
+                <td>0.0</td>
+                <td>1.0</td>
+            </tr>
+            <tr>
+                <td>WF</td>
+                <td>flicker noise width exponent</td>
+                <td>-</td>
+                <td>1.0</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>LF</td>
+                <td>flicker noise length exponent</td>
+                <td>-</td>
+                <td>1.0</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>EF</td>
+                <td>flicker noise frequency exponent</td>
+                <td></td>
+                <td>1.0</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>R(RES)</td>
+                <td>default value if element value not given</td>
+                <td>$\rm \Omega$</td>
+                <td>-</td>
+                <td>1000</td>
+            </tr>
+        </table>
+
+        <p>
+            The sheet resistance is used with the narrowing parameter and
+            <span class="icode">l</span> and <span class="icode">w</span> from the resistor device
+            to determine the nominal resistance by the formula:
+        </p>
+
+        $$ \begin{aligned} R_{nom} = {\rm rsh} \frac{l - {\rm SHORT}}{w - {\rm NARROW}} \tag{3.3}
+        \end{aligned} $$
+
+        <p>
+            <span class="icode">DEFW</span> is used to supply a default value for
+            <span class="icode">w</span> if one is not specified for the device. If either
+            <span class="icode">rsh</span> or <span class="icode">l</span> is not specified, then
+            the standard default resistance value of 1 mOhm is used. TNOM is used to override the
+            circuit-wide value given on the <span class="icode">.options</span> control line where
+            the parameters of this model have been measured at a different temperature. After the
+            nominal resistance is calculated, it is adjusted for temperature by the formula:
+        </p>
+
+        $$ \begin{aligned} R(T) = R({\rm TNOM}) \left( 1+TC_1(T-{\rm TNOM})+TC_2(T-{\rm TNOM})^2
+        \right) \tag{3.4} \end{aligned} $$
+
+        <p>
+            where $R({\rm TNOM}) = R_{nom}|R_{acnom}$. In the above formula, `$T$` represents the
+            instance temperature, which can be explicitly set using the
+            <span class="icode">temp</span> keyword or calculated using the circuit temperature and
+            <span class="icode">dtemp</span>, if present. If both
+            <span class="icode">temp</span> and <span class="icode">dtemp</span> are specified, the
+            latter is ignored. Ngspice improves SPICE's resistors noise model, adding flicker noise
+            ($1/f$) to it and the <span class="icode">noisy (or noise)</span> keyword to simulate
+            noiseless resistors. The thermal noise in resistors is modeled according to the
+            equation:
+        </p>
+
+        $$ \begin{aligned} i^{\overline{2}}_R = \frac{4kT}{R} \Delta f \tag{3.5} \end{aligned} $$
+
+        <p>where `$k$` is the Boltzmann's constant, and `$T$` the instance temperature.</p>
+        <p>Flicker noise model is:</p>
+
+        $$ \begin{aligned} i^{\overline{2}}_{Rfn} = {\rm \frac{ KF {\it I\ }_{\it R}^{AF} } { \it
+        W^{WF} L^{LF} f^{\ EF} } {\it \Delta f} } \tag{3.6} \end{aligned} $$
+
+        <p>
+            A small list of sheet resistances (in $\Omega / \Box$) for conductors is shown below.
+            The table represents typical values for MOS processes in the 0.5-1um range. The table is
+            taken from:
+            <em>
+                N. Weste, K. Eshraghian - Principles of CMOS VLSI Design 2nd Edition, Addison
+                Wesley.
+            </em>
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Material</th>
+                <th>Min.</th>
+                <th>Typ.</th>
+                <th>Max.</th>
+            </tr>
+            <tr>
+                <td>Inter-metal (metal1 - metal2)</td>
+                <td>0.005</td>
+                <td>0.007</td>
+                <td>0.1</td>
+            </tr>
+            <tr>
+                <td>Top-metal (metal3)</td>
+                <td>0.003</td>
+                <td>0.004</td>
+                <td>0.05</td>
+            </tr>
+            <tr>
+                <td>Polysilicon (poly)</td>
+                <td>15</td>
+                <td>20</td>
+                <td>30</td>
+            </tr>
+            <tr>
+                <td>Silicide</td>
+                <td>2</td>
+                <td>3</td>
+                <td>6</td>
+            </tr>
+            <tr>
+                <td>Diffusion (n+, p+)</td>
+                <td>10</td>
+                <td>25</td>
+                <td>100</td>
+            </tr>
+            <tr>
+                <td>Silicided diffusion</td>
+                <td>2</td>
+                <td>4</td>
+                <td>10</td>
+            </tr>
+            <tr>
+                <td>n-wel</td>
+                <td>1000</td>
+                <td>2000</td>
+                <td>5000</td>
+            </tr>
+        </table>
+
+        <h3 id="3.3.4">3.3.4 Resistors, dependent on expressions (behavioral resistor)</h3>
+        <p>General form:</p>
+        <pre>
+RXXXXXXX n+ n- R = 'expression' &lt;tc1=value&gt; &lt;tc2=value&gt; &lt;noisy=0&gt;
+RXXXXXXX n+ n- 'expression' &lt;tc1=value&gt; &lt;tc2 =value&gt; &lt;noisy=0&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+R1 rr 0 r = 'V(rr) &lt; {Vt} ? {R0} : {2* R0}' tc1=2e-03 tc2=3.3e-06
+R2 r2 rr r = {5k + 50*TEMPER}
+.param rp1 = 20
+R3 no1 no2 r = '5k * rp1' noisy=1
+</pre
+        >
+        <p>
+            <strong>Expression</strong> may be an equation or an expression containing node voltages
+            or branch currents (in the form of i(vm)) and any other terms as given for the B source
+            and described in Chapt. 5.1. It may contain parameters (2.9.1) and the special variables
+            <span class="icode">time</span>, <span class="icode">temper</span>, and
+            <span class="icode">hertz</span> (5.1.2). An example file is given below. Small signal
+            noise in the resistor (15.3.4) may be evaluated as white noise, depending on resistance,
+            temperature and tc1, tc2. To enable noise calculation, add the flag
+            <span class="icode">noisy=1</span> to the instance line. As a default the behavioral
+            resistor is noiseless.
+        </p>
+        <p>Example input file for non-linear resistor:</p>
+        <pre>
+Non-linear resistor
+.param R0=1k Vi=1 Vt=0.5
+* resistor depending on control voltage V(rr)
+R1 rr 0 r = 'V(rr) &lt; {Vt} ? {R0} : {2* R0}'
+* control voltage
+V1 rr 0 PWL (0 0 100 u {Vi})
+.control
+unset askquit
+tran 100 n 100 u uic
+plot i(V1)
+.endc
+.end
+</pre
+        >
+        <h3 id="3.3.5">3.3.5 Resistor with nonlinear r2_cmc model</h3>
+        <p>
+            In the adms version of ngspice, a resistor model r2_cmc is implemented. This is a 2-
+            terminal resistor model developed by the resistor subcommittee of the CMC. The goal was
+            to have a standard 2-terminal resistor model with standard parameter names and a
+            standard, numerically well behaved nonlinearity model. It may be selected by setting
+            <span class="icode">level=2</span> in the .model line.
+        </p>
+        <p>
+            For now a detailed description is available in the Verilog A source code file to be
+            found a <span class="icode">src/spicelib/devices/adms/r2_cmc/admsva/r2_cmc.va</span>.
+        </p>
+        <p>Example input file for non-linear resistor with r2_cmc model</p>
+        <pre>
+r2_cmc
+v1 1 0 10
+Rr2_cmc 1 0 rmodel w=1u l=20 u isnoisy=1
+.model rmodel r(level=2 rsh=200 xl=0.2u xw=-0.05u
++ p3=0.12 q3=1.6 p2=0.015 q2=3.8 tc1=1.5e-4 tc2=7e-7)
+.control
+op
+let res = v(1) / -v1# branch
+print res .endc
+.end
+</pre
+        >
+        <h3 id="3.3.6">3.3.6 Capacitors</h3>
+        <p>General form:</p>
+        <pre>
+CXXXXXXX n+ n- &lt;value&gt; &lt;mname&gt; &lt;m=val&gt; &lt;scale=val&gt; &lt;temp=val&gt;
++ &lt;dtemp=val&gt; &lt;tc1=val&gt; &lt;tc2=val&gt; &lt;ic=init_condition&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+CBYP 13 0 1UF
+COSC 17 23 10U IC=3V
+</pre
+        >
+        <p>
+            Ngspice provides a detailed model for capacitors. Capacitors in the netlist can be
+            specified giving their capacitance or their geometrical and physical characteristics.
+            Following the original SPICE3 `convention`, capacitors specified by their geometrical or
+            physical characteristics are called `semiconductor capacitors` and are described in the
+            next section.
+        </p>
+        <p>
+            In this first form <span class="icode">n+</span> and <span class="icode">n-</span> are
+            the positive and negative element nodes, respectively and
+            <span class="icode">value</span> is the capacitance in Farads.
+        </p>
+        <p>
+            Capacitance can be specified in the instance line as in the examples above or in a
+            <span class="icode">.model</span> line, as in the example below:
+        </p>
+        <pre>
+C1 15 5 cstd
+C2 2 7 cstd
+.model cstd C cap=3n
+</pre
+        >
+        <p>Both capacitors have a capacitance of 3nF.</p>
+        <p>
+            If you want to simulate temperature dependence of a capacitor, you need to specify its
+            temperature coefficients, using a <span class="icode">.model</span> line, like in the
+            example below:
+        </p>
+        <pre>
+CEB 1 2 1u cap1 dtemp=5
+.MODEL cap1 C tc1=0.001
+</pre
+        >
+        <p>
+            The (optional) initial condition is the initial (time zero) value of capacitor voltage
+            (in Volts). Note that the initial conditions (if any) apply only if the
+            <span class="icode">uic</span> option is specified on the
+            <span class="icode">.tran</span> control line.
+        </p>
+        <p>Ngspice calculates the nominal capacitance as described below:</p>
+
+        $$ \begin{aligned} C_{nom} = {\rm value \cdot scale} \cdot m \tag{3.7} \end{aligned} $$
+
+        <p>
+            The temperature coefficients <span class="icode">tc1</span> and
+            <span class="icode">tc2</span> describe a quadratic temperature dependence (see
+            equation17.14) of the capacitance. If given in the instance line (the C... line) their
+            values will override the <span class="icode">tc1</span> and
+            <span class="icode">tc2</span> of the <span class="icode">.model</span> line (3.3.8).
+        </p>
+        <h3 id="3.3.7">3.3.7 Semiconductor Capacitors</h3>
+        <p>General form:</p>
+        <pre>
+CXXXXXXX n+ n- &lt;value&gt; &lt;mname&gt; &lt;l=length&gt; &lt;w=width&gt; &lt;m=val&gt;
++ &lt;scale=val&gt; &lt;temp=val&gt; &lt;dtemp=val&gt; &lt;ic=init_condition&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+CLOAD 2 10 10P
+CMOD 3 7 CMODEL L=10u W=1u
+</pre
+        >
+        <p>
+            This is the more general form of the Capacitor presented in section (3.3.6), and allows
+            for the calculation of the actual capacitance value from strictly geometric information
+            and the specifications of the process. If <span class="icode">value</span> is specified,
+            it defines the capacitance and both process and geometrical information are discarded.
+            If <span class="icode">value</span> is not specified, the capacitance is calculated from
+            information contained model <span class="icode">mname</span> and the given length and
+            width (<span class="icode">l</span>, <span class="icode">w</span> keywords,
+            respectively).
+        </p>
+        <p>
+            It is possible to specify <span class="icode">mname</span> only, without geometrical
+            dimensions and set the capacitance in the <span class="icode">.model</span> line
+            (3.3.6).
+        </p>
+        <h3 id="3.3.8">3.3.8 Semiconductor Capacitor Model (C)</h3>
+        <p>
+            The capacitor model contains process information that may be used to compute the
+            capacitance from strictly geometric information.
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Units</th>
+                <th>Default</th>
+                <th>Example</th>
+            </tr>
+            <tr>
+                <td>CAP</td>
+                <td>model capacitance</td>
+                <td>$\rm F$</td>
+                <td>0.0</td>
+                <td>1e-6</td>
+            </tr>
+            <tr>
+                <td>CJ</td>
+                <td>junction bottom capacitance</td>
+                <td>$\rm F/m^2$</td>
+                <td>-</td>
+                <td>5e-5</td>
+            </tr>
+            <tr>
+                <td>CJSW</td>
+                <td>junction sidewall capacitance</td>
+                <td>$\rm F/m$</td>
+                <td>-</td>
+                <td>2e-11</td>
+            </tr>
+            <tr>
+                <td>DEFW</td>
+                <td>default device width</td>
+                <td>$\rm m$</td>
+                <td>1e-6</td>
+                <td>2e-6</td>
+            </tr>
+            <tr>
+                <td>DEFL</td>
+                <td>default device length</td>
+                <td>$\rm m$</td>
+                <td>0.0</td>
+                <td>1e-6</td>
+            </tr>
+            <tr>
+                <td>NARROW</td>
+                <td>narrowing due to side etching</td>
+                <td>$\rm m$</td>
+                <td>0.0</td>
+                <td>1e-7</td>
+            </tr>
+            <tr>
+                <td>SHORT</td>
+                <td>shortening due to side etching</td>
+                <td>$\rm m$</td>
+                <td>0.0</td>
+                <td>1e-7</td>
+            </tr>
+            <tr>
+                <td>TC1</td>
+                <td>first order temperature coeff.</td>
+                <td>$\rm F/ ^\circ C$</td>
+                <td>0.0</td>
+                <td>0.001</td>
+            </tr>
+            <tr>
+                <td>TC2</td>
+                <td>second order temperature coeff.</td>
+                <td>$\rm F/ ^\circ C^2$</td>
+                <td>0.0</td>
+                <td>0.0001</td>
+            </tr>
+            <tr>
+                <td>TNOM</td>
+                <td>parameter measurement temperature</td>
+                <td>$\rm ^\circ C$</td>
+                <td>27</td>
+                <td>50</td>
+            </tr>
+            <tr>
+                <td>DI</td>
+                <td>relative dielectric constant</td>
+                <td>$\rm F/m$</td>
+                <td>-</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>THICK</td>
+                <td>insulator thickness</td>
+                <td>$\rm m$</td>
+                <td>0.0</td>
+                <td>1e-9</td>
+            </tr>
+        </table>
+
+        <p>The capacitor has a capacitance computed as:</p>
+        <p>If <span class="icode">value</span> is specified on the instance line then</p>
+
+        $$ \begin{aligned} C_{nom} = {\rm value \cdot scale} \cdot m \tag{3.8} \end{aligned} $$
+
+        <p>If model capacitance is specified then</p>
+
+        $$ \begin{aligned} C_{nom} = {\rm CAP \cdot scale} \cdot m \tag{3.9} \end{aligned} $$
+
+        <p>
+            If neither <span class="icode">value</span> nor <span class="icode">CAP</span> are
+            specified, then geometrical and physical parameters are take into account:
+        </p>
+
+        $$ \begin{aligned} {\rm C_0 = CJ}(l-{\rm SHORT})(w-{\rm NARROW})+{\rm 2CJSW}(l-{\rm
+        SHORT}+w-{\rm NARROW}) \tag{3.10} \end{aligned} $$
+
+        <p>
+            <span class="icode">CJ</span> can be explicitly given on the
+            <span class="icode">.model</span> line or calculated by physical parameters. When
+            <span class="icode">CJ</span> is not given, is calculated as:
+        </p>
+        <p>If <span class="icode">THICK</span> is not zero:</p>
+
+        $$ \begin{aligned} {\rm CJ} &amp;= \frac{\rm DI \epsilon_0}{\rm THICK} \ \ {\rm if\ DI\ is\
+        specified,} \\ \cr {\rm CJ} &amp;= \frac{\epsilon_{\rm SiO_2}}{\rm THICK} \ \ {\rm
+        otherwise} \tag{3.11} \end{aligned} $$
+
+        <p>
+            If the relative dielectric constant is not specified the one for SiO2 is used. The
+            values of the constants are $\epsilon_0 = 8.854214871e-12\ [{\rm F/m}] $ and
+            $\epsilon_{\rm SiO_2} = 3.4531479969e-11\ [{\rm F/m}]$. The nominal capacitance is then
+            computed as:
+        </p>
+
+        $$ \begin{aligned} C_{nom} = C_0 \cdot {\rm scale} \cdot m \tag{3.12} \end{aligned} $$
+
+        <p>
+            After the nominal capacitance is calculated, it is adjusted for temperature by the
+            formula:
+        </p>
+
+        $$ \begin{aligned} C(T) = C({\rm TNOM}) \left( 1+TC_1(T-{\rm TNOM})+TC_2(T-{\rm TNOM})^2
+        \right) \tag{3.13} \end{aligned} $$ where $C({\rm TNOM}) = C_{nom}$.
+
+        <p>
+            In the above formula, `$T$` represents the instance temperature, which can be explicitly
+            set using the
+            <span class="icode">temp</span> keyword or calculated using the circuit temperature and
+            <span class="icode">dtemp</span>, if present.
+        </p>
+
+        <h3 id="3.3.9">3.3.9 Capacitors, dependent on expressions (behavioral capacitor)</h3>
+        <p>There are two forms for behavioral capacitors allowed:</p>
+        <ol>
+            <li>Capacitance formulated expressions C = 'expression'</li>
+            <li>Charge formulated expressions Q = 'expression'</li>
+        </ol>
+        <p>General form:</p>
+        <pre>
+CXXXXXXX n+ n- C = 'expression' &lt;tc1=value&gt; &lt;tc2=value&gt;
+CXXXXXXX n+ n- 'expression' &lt;tc1=value&gt; &lt;tc2=value&gt;
+CXXXXXXX n+ n- Q = 'expression' &lt;tc1=value&gt; &lt;tc2=value&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+C1 cc 0 c = 'V(cc) &lt; {Vt} ? {C1} : {Ch}' tc1=-1e-03 tc2=1.3e-05
+C1 a b q = '1u*(4*atan(V(a,b)/4)*2+V(a,b))/3'
+</pre
+        >
+        <p>
+            <strong>Expression</strong> may be an equation or an expression containing node voltages
+            or branch currents (in the form of i(vm)) and any other terms as given for the B source
+            and described in Chapt. 5.1. It may contain parameters (2.9.1) and the special variables
+            <span class="icode">time</span>, <span class="icode">temper</span>, and
+            <span class="icode">hertz</span> (5.1.2).
+        </p>
+        <p>Example input file:</p>
+        <pre>
+Behavioral Capacitor
+.param Cl=5n Ch=1n Vt=1m Il=100n
+.ic v(cc) = 0 v(cc2) = 0
+* capacitor depending on control voltage V(cc)
+C1 cc 0 c = 'V(cc) &lt; {Vt} ? {Cl} : {Ch}'
+I1 0 1 {Il}
+Exxx n1 - copy n2 n2 cc2 1
+Cxxx n1 - copy n2 1
+Bxxx cc2 n2 I = '(V(cc2) &lt; {Vt} ? {Cl} : {Ch})' * i(Exxx)
+I2 n2 22 {Il}
+vn2 n2 0 DC 0
+* measure charge by integrating current
+aint1 %id (1 cc) 2 time_count
+aint2 %id (22 cc2) 3 time_count
+.model time_count int (in_offset=0.0 gain=1.0
++ out_lower_limit=-1e12 out_upper_limit=1e12
++ limit_range=1e-9 out_ic=0.0)
+.control
+unset askquit
+tran 100n 100u
+plot v (2)
+plot v(cc) v(cc2)
+.endc
+.end
+</pre
+        >
+        <h3 id="3.3.10">3.3.10 Inductors</h3>
+        <p>General form:</p>
+        <pre>
+LYYYYYYY n+ n- &lt;value&gt; &lt;mname&gt; &lt;nt=val&gt; &lt;m=val&gt;
++ &lt;scale=val&gt; &lt;temp=val&gt; &lt;dtemp=val&gt; &lt;tc1=val&gt;
++ &lt;tc2=val&gt; &lt;ic=init_condition&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+LLINK 42 69 1UH
+LSHUNT 23 51 10U IC=15.7MA
+</pre
+        >
+        <p>
+            The inductor device implemented into ngspice has many enhancements over the original
+            one. <span class="icode">n+</span> and <span class="icode">n-</span> are the positive
+            and negative element nodes, respectively. <span class="icode">value</span> is the
+            inductance in Henry. Inductance can be specified in the instance line as in the examples
+            above or in a <span class="icode">.model</span> line, as in the example below:
+        </p>
+        <pre>
+L1 15 5 indmod1
+L2 2 7 indmod1
+.model indmod1 L ind=3n
+</pre
+        >
+        <p>
+            Both inductors have an inductance of 3nH.<br />
+            The <span class="icode">nt</span> is used in conjunction with a
+            <span class="icode">.model</span> line, and is used to specify the number of turns of
+            the inductor. If you want to simulate temperature dependence of an inductor, you need to
+            specify its temperature coefficients, using a <span class="icode">.model</span> line,
+            like in the example below:
+        </p>
+        <pre>
+Lload 1 2 1u ind1 dtemp=5
+.MODEL ind1 L tc1=0.001
+</pre
+        >
+        <p>
+            The (optional) initial condition is the initial (time zero) value of inductor current
+            (in Amps) that flows from <span class="icode">n+</span>, through the inductor, to
+            <span class="icode">n-</span>. Note that the initial conditions (if any) apply only if
+            the <span class="icode">UIC</span> option is specified on the
+            <span class="icode">.tran</span> analysis line.
+        </p>
+        <p>Ngspice calculates the nominal inductance as described below:</p>
+
+        $$ \begin{aligned} L_{nom} = \frac{\rm value\ scale}{m} \tag{3.14} \end{aligned} $$
+
+        <h3 id="3.3.11">3.3.11 Inductor model</h3>
+        <p>
+            The inductor model contains physical and geometrical information that may be used to
+            compute the inductance of some common topologies like solenoids and toroids, wound in
+            air or other material with constant magnetic permeability.
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Units</th>
+                <th>Default</th>
+                <th>Example</th>
+            </tr>
+            <tr>
+                <td>IND</td>
+                <td>model inductance</td>
+                <td>$\rm H$</td>
+                <td>0.0</td>
+                <td>1e-3</td>
+            </tr>
+            <tr>
+                <td>CSECT</td>
+                <td>cross section</td>
+                <td>$\rm m^2$</td>
+                <td>0.0</td>
+                <td>1e-3</td>
+            </tr>
+            <tr>
+                <td>LENGTH</td>
+                <td>length</td>
+                <td>$\rm m$</td>
+                <td>0.0</td>
+                <td>1e-2</td>
+            </tr>
+            <tr>
+                <td>TC1</td>
+                <td>first order temperature coef</td>
+                <td>$\rm H/ ^\circ C$</td>
+                <td>0.0</td>
+                <td>0.001</td>
+            </tr>
+            <tr>
+                <td>TC2</td>
+                <td>second order temperature coeff.</td>
+                <td>$\rm H/ ^\circ C^2$</td>
+                <td>0.0</td>
+                <td>0.0001</td>
+            </tr>
+            <tr>
+                <td>TNOM</td>
+                <td>parameter measurement temperature</td>
+                <td>$\rm ^\circ C$</td>
+                <td>27</td>
+                <td>50</td>
+            </tr>
+            <tr>
+                <td>NT</td>
+                <td>number of turns</td>
+                <td>-</td>
+                <td>0.0</td>
+                <td>10</td>
+            </tr>
+            <tr>
+                <td>MU</td>
+                <td>relative magnetic permeability</td>
+                <td>$\rm H/m$</td>
+                <td>0.0</td>
+                <td>-</td>
+            </tr>
+        </table>
+
+        <p>The inductor has an inductance computed as:</p>
+        <p>If <span class="icode">value</span> is specified on the instance line then</p>
+
+        $$ \begin{aligned} L_{nom} = \frac{\rm value\ scale}{m} \tag{3.15} \end{aligned} $$
+
+        <p>If model inductance is specified then</p>
+
+        $$ \begin{aligned} L_{nom} = \frac{\rm IND\ scale}{m} \tag{3.15} \end{aligned} $$
+
+        <p>
+            If neither <span class="icode">value</span> nor <span class="icode">IND</span> are
+            specified, then geometrical and physical parameters are take into account. In the
+            following formulas, <span class="icode">NT</span> refers to both instance and model
+            parameter (instance parameter overrides model parameter):
+        </p>
+        <p>If <span class="icode">LENGTH</span> is not zero:</p>
+
+        $$ \begin{aligned} \begin{cases} L_{nom} = {\rm \frac{ MU \mu_0 NT^2 CSECT }{ LENGTH }\ \
+        if\ MU\ is\ specified,} \\ \cr L_{nom} = {\rm \frac{ \mu_0 NT^2 CSECT }{ LENGTH }\ \ \ \ \ \
+        \ otherwise.} \end{cases} \tag{3.17} \end{aligned} $$
+
+        <p>
+            with $\mu_0 = 1.25663706143592\ [{\rm \mu H/m}]$. After the nominal inductance is
+            calculated, it is adjusted for temperature by the formula
+        </p>
+
+        $$ \begin{aligned} L(T) = L({\rm TNOM}) \left( 1+TC_1(T-{\rm TNOM})+TC_2(T-{\rm TNOM})^2
+        \right), \tag{3.18} \end{aligned} $$
+
+        <p>
+            where $L({\rm TNOM})=L_{nom}$. In the above formula, `$T$` represents the instance
+            temperature, which can be explicitly set using the
+            <span class="icode">temp</span> keyword or calculated using the circuit temperature and
+            <span class="icode">dtemp</span>, if present.
+        </p>
+        <h3 id="3.3.12">3.3.12 Coupled (Mutual) Inductors</h3>
+        <p>General form:</p>
+        <pre>KXXXXXXX LYYYYYYY LZZZZZZZ value</pre>
+        <p>Examples:</p>
+        <pre>
+K43 LAA LBB 0.999
+KXFRMR L1 L2 0.87
+</pre
+        >
+        <p>
+            LYYYYYYY and LZZZZZZZ are the names of the two coupled inductors, and
+            <span class="icode">value</span> is the coefficient of coupling, K, which must be
+            greater than 0 and less than or equal to 1. Using the `dot` convention for drawing the
+            coupled inductors, place a `dot` on the first node of each inductor. If you have more
+            than two inductors interacting, pairwise coupling is supported.
+        </p>
+        <p>Pairwise coupling of more than two inductors:</p>
+        <pre>
+L1 1 0 10u
+L2 2 0 11u
+L3 3 0 10u
+
+K12 L1 L2 0.99
+K23 L2 L3 0.99
+K13 L1 L3 0.98
+</pre
+        >
+        <p>
+            When there are more than two inductors coupled for interaction, some combination of
+            coupling constants are not possible physically because the magnetic fields then would
+            violate energy conservation. ngspice checks the coupling matrix for such conditions and
+            issues a warning.
+        </p>
+        <h3 id="3.3.13">3.3.13 Inductors, dependent on expressions (behavioral inductor)</h3>
+        <p>General form:</p>
+        <pre>
+LXXXXXXX n+ n- L = 'expression' &lt;tc1=value&gt; &lt;tc2=value&gt;
+LXXXXXXX n+ n- 'expression' &lt;tc1=value&gt; &lt;tc2=value&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>L1 l2 lll L = 'i(Vm) &lt; {It} ? {Ll} : {Lh}' tc1=-4e-03 tc2=6e-05</pre>
+        <p>
+            <strong>Expression</strong> may be an equation or an expression containing node voltages
+            or branch currents (in the form of i(vm)) and any other terms as given for the B source
+            and described in Chapt. 5.1. It may contain parameters (2.9.1) and the special variables
+            <span class="icode">time</span>, <span class="icode">temper</span>, and
+            <span class="icode">hertz</span> (5.1.2).
+        </p>
+        <p>Example input file:</p>
+        <pre>
+Variable inductor
+.param Ll=0.5m Lh=5m It=50u Vi=2m
+.ic v(int21) = 0
+
+* variable inductor depending on control current i(Vm)
+L1 l2 lll L = 'i(Vm) &lt; {It} ? {Ll} : {Lh}'
+* measure current through inductor
+vm lll 0 dc 0
+* voltage on inductor
+V1 l2 0 {Vi}
+
+* fixed inductor
+L3 33 331 {Ll}
+* measure current through inductor
+vm33 331 0 dc 0
+* voltage on inductor
+V3 33 0 {Vi}
+
+* non linear inductor ( discrete setup )
+F21 int21 0 B21 -1
+L21 int21 0 1
+B21 n1 n2 V = '(i(Vm21) &lt; {It} ? {Ll} : {Lh})' * v(int21)
+* measure current through inductor
+vm21 n2 0 dc 0
+V21 n1 0 {Vi}
+
+.control
+unset askquit
+tran 1u 100 u uic
+plot i(Vm) i(vm33)
+plot i(vm21) i(vm33)
+plot i(vm)-i(vm21)
+.endc
+.end
+</pre
+        >
+        <h3 id="3.3.14">3.3.14 Capacitor or inductor with initial conditions</h3>
+        <p>
+            The simulator supports the specification of voltage and current initial conditions on
+            capacitor and inductor models, respectively.
+            <u>
+                These models are not the standard ones supplied with SPICE3, but are in fact code
+                models that can be substituted for the SPICE models when realistic initial
+                conditions are required.
+            </u>
+            For details please refer to Chapter 12. A XSPICE deck example using these models is
+            shown below:
+        </p>
+        <pre>
+*
+* This circuit contains a capacitor and an inductor with
+* initial conditions on them. Each of the components
+* has a parallel resistor so that an exponential decay
+* of the initial condition occurs with a time constant of
+* 1 second.
+*
+a1 1 0 cap
+.model cap capacitor (c=1000uf ic=1)
+r1 1 0 1k
+*
+a2 2 0 ind
+.model ind inductor (l=1H ic=1)
+r2 2 0 1.0
+*
+.control
+tran 0.01 3
+plot v(1) v(2)
+.endc
+.end
+</pre
+        >
+        <h3 id="3.3.15">3.3.15 Switches</h3>
+        <p>
+            Two types of switches are available: a voltage controlled switch (type SXXXXXX, model
+            SW) and a current controlled switch (type WXXXXXXX, model CSW). A switching hysteresis
+            may be defined, as well as on- and off-resistances ($0 &lt; R &lt; \infty$).
+        </p>
+        <p>General form:</p>
+        <pre>
+SXXXXXXX N+ N- NC+ NC- MODEL &lt;ON&gt;&lt;OFF&gt;
+WYYYYYYY N+ N- VNAM MODEL &lt;ON&gt;&lt;OFF&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+s1 1 2 3 4 switch1 ON
+s2 5 6 3 0 sm2 off
+Switch1 1 2 10 0 smodel1
+w1 1 2 vclock switchmod1
+W2 3 0 vramp sm1 ON
+wreset 5 6 vclck lossyswitch OFF
+</pre
+        >
+        <p>
+            Nodes 1 and 2 are the nodes between which the switch terminals are connected. The model
+            name is mandatory while the initial conditions are optional. For the voltage controlled
+            switch, nodes 3 and 4 are the positive and negative controlling nodes respectively. For
+            the current controlled switch, the controlling current is that through the specified
+            voltage source. The direction of positive controlling current flow is from the positive
+            node, through the source, to the negative node.
+        </p>
+        <p>
+            The instance parameters ON or OFF are required, when the controlling voltage (current)
+            starts inside the range of the hysteresis loop (different outputs during forward vs
+            backward voltage or current ramp). Then ON or OFF determine the initial state of the
+            switch.
+        </p>
+        <h3 id="3.3.16">3.3.16 Switch Model (SW/CSW)</h3>
+        <p>
+            The switch model allows an almost ideal switch to be described in ngspice. The switch is
+            not quite ideal, in that the resistance can not change from 0 to infinity, but must
+            always have a finite positive value. By proper selection of the on and off resistances,
+            they can be effectively zero and infinity in comparison to other circuit elements. The
+            parameters available are shown below.
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <td>Name</td>
+                <td>Parameter</td>
+                <td>Units</td>
+                <td>Default</td>
+                <td>Switch model</td>
+            </tr>
+            <tr>
+                <td>VT</td>
+                <td>threshold voltage</td>
+                <td>$\rm V$</td>
+                <td>0.0</td>
+                <td>SW</td>
+            </tr>
+            <tr>
+                <td>IT</td>
+                <td>threshold current</td>
+                <td>$\rm A$</td>
+                <td>0.0</td>
+                <td>CSW</td>
+            </tr>
+            <tr>
+                <td>VH</td>
+                <td>hysteresis voltage</td>
+                <td>$\rm V$</td>
+                <td>0.0</td>
+                <td>SW</td>
+            </tr>
+            <tr>
+                <td>IH</td>
+                <td>hysteresis current</td>
+                <td>$\rm A$</td>
+                <td>0.0</td>
+                <td>CSW</td>
+            </tr>
+            <tr>
+                <td>RON</td>
+                <td>on resistance</td>
+                <td>$\rm \Omega$</td>
+                <td>1.0</td>
+                <td>SW,CSW</td>
+            </tr>
+            <tr>
+                <td>ROFF</td>
+                <td>off resistance</td>
+                <td>$\rm \Omega$</td>
+                <td>1.0e+12 (*)</td>
+                <td>SW,CSW</td>
+            </tr>
+        </table>
+
+        <p>
+            (*) Or $\rm 1/GMIN$, if you have set $\rm GMIN$ to any other value, see the
+            <span class="icode">.OPTIONS</span> control line (15.1.2) for a description of $\rm
+            GMIN$, its default value results in an off-resistance of 1.0e+12 ohms.
+        </p>
+        <p>
+            The use of an ideal element that is highly nonlinear such as a switch can cause large
+            discontinuities to occur in the circuit node voltages. A rapid change such as that
+            associated with a switch changing state can cause numerical round-off or tolerance
+            problems leading to erroneous results or time step difficulties. The user of switches
+            can improve the situation by taking the following steps:
+        </p>
+        <ul>
+            <li>
+                First, it is wise to set the ideal switch impedance just high or low enough to be
+                negligible with respect to other circuit elements. Using switch impedances that are
+                close to `ideal` in all cases aggravates the problem of discontinuities mentioned
+                above. Of course, when modeling real devices such as MOSFETS, the on resistance
+                should be adjusted to a realistic level depending on the size of the device being
+                modeled.
+            </li>
+            <li>
+                If a wide range of ON to OFF resistance must be used in the switches ($\rm ROFF/RON$
+                &gt; <span class="icode">1e+12</span>), then the tolerance on errors allowed during
+                transient analysis should be decreased by using the
+                <span class="icode">.OPTIONS</span> control line and specifying
+                <span class="icode">TRTOL</span> to be less than the default value of 7.0.
+            </li>
+            <li>
+                When switches are placed around capacitors, then the option
+                <span class="icode">CHGTOL</span> should also be reduced. Suggested values for these
+                two options are 1.0 and 1e-16 respectively. These changes inform ngspice to be more
+                careful around the switch points so that no errors are made due to the rapid change
+                in the circuit.
+            </li>
+        </ul>
+        <p>Example input file:</p>
+        <pre>
+Switch test
+.tran 2us 5ms
+* switch control voltage
+v1 1 0 DC 0.0 PWL (0 0 2e-3 2 4e-3 0)
+* switch control voltage starting inside hysteresis window
+* please note influence of instance parameters ON , OFF
+v2 2 0 DC 0.0 PWL (0 0.9 2e-3 2 4e-3 0.4)
+* switch control current
+i3 3 0 DC 0.0 PWL (0 0 2e-3 2m 4e-3 0) $ &lt;--- switch control current
+* load voltage
+v4 4 0 DC 2.0
+* input load for current source i3
+r3 3 33 10k
+vm3 33 0 dc 0 $ &lt;--- measure the current
+* ouput load resistors
+r10 4 10 10k
+r20 4 20 10k
+r30 4 30 10k
+r40 4 40 10k
+*
+s1 10 0 1 0 switch1 OFF
+s2 20 0 2 0 switch1 OFF
+s3 30 0 2 0 switch1 ON
+.model switch1 sw vt=1 vh=0.2 ron=1 roff=10k
+*
+w1 40 0 vm3 wswitch1 off
+.model wswitch1 csw it=1m ih=0.2m ron=1 roff=10k
+*img
+.control
+run
+plot v(1) v(10)
+plot v(10) vs v(1) $ &lt;-- get hysteresis loop
+plot v(2) v(20) $ &lt;--- different initial values
+plot v(20) vs v(2) $ &lt;-- get hysteresis loop
+plot v(2) v(30) $ &lt;--- different initial values
+plot v(30) vs v(2) $ &lt;-- get hysteresis loop
+plot v(40) vs vm3#branch $ &lt;--- current controlled switch hysteresis
+.endc
+.end
+</pre
+        >
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        { left: "$$", right: "$$", display: true },
+                        { left: "$", right: "$", display: false },
+                    ],
+                });
+            });
+        </script>
+        <script>
+            window.onload = function () {
+                const katexs_obj = document.getElementsByClassName("katex");
+                Array.from(katexs_obj).filter((k) => k.setAttribute("translate", "no"));
+                const icode_obj = document.getElementsByClassName("icode");
+                Array.from(icode_obj).filter((k) => k.setAttribute("translate", "no"));
+                const pre_obj = document.getElementsByTagName("pre");
+                Array.from(pre_obj).filter((k) => k.setAttribute("translate", "no"));
+            };
+        </script>
+    </body>
+</html>
