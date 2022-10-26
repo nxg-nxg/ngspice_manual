@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>ngspice manual</title>
+        <link rel="stylesheet" type="text/css" href="./css/style.css" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css"
+            integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X"
+            crossorigin="anonymous"
+        />
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.js"
+            integrity="sha384-Qsn9KnoKISj6dI8g7p1HBlNpVx0I8p1SvlwOldgi3IorMle61nQy4zEahWYtljaz"
+            crossorigin="anonymous"
+        ></script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/auto-render.min.js"
+            integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+            crossorigin="anonymous"
+            onload="renderMathInElement(document.body);"
+        ></script>
+    </head>
+    <body>
+        <h1 id="4">Chapter4<br /><br />Voltage and Current Sources</h1>
+        <br />
+        <h2 id="4.1">4.1 Independent Sources for Voltage or Current</h2>
+        <p>General form:</p>
+        <pre>
+VXXXXXXX N+ N- &lt;&lt;DC&gt; DC/TRAN VALUE&gt; &lt;AC &lt;ACMAG &lt;ACPHASE&gt;&gt;&gt;
++ &lt;DISTOF1 &lt;F1MAG &lt;F1PHASE&gt;&gt;&gt; &lt;DISTOF2 &lt;F2MAG &lt;F2PHASE&gt;&gt;&gt;
+IYYYYYYY N+ N- &lt;&lt;DC&gt; DC/TRAN VALUE&gt; &lt;AC &lt;ACMAG &lt;ACPHASE&gt;&gt;&gt;
++ &lt;DISTOF1 &lt;F1MAG &lt;F1PHASE&gt;&gt;&gt; &lt;DISTOF2 &lt;F2MAG &lt;F2PHASE&gt;&gt;&gt;
+</pre
+        >
+        <p>Examples:</p>
+        <pre>
+VCC 10 0 DC 6
+VIN 13 2 0.001 AC 1 SIN(0 1 1 MEG)
+ISRC 23 21 AC 0.333 45.0 SFFM(0 1 10K 5 1K)
+VMEAS 12 9
+VCARRIER 1 0 DISTOF1 0.1 -90.0
+VMODULATOR 2 0 DISTOF2 0.01
+IIN1 1 5 AC 1 DISTOF1 DISTOF2 0.001
+</pre
+        >
+        <p>
+            <span class="icode">n+</span> and <span class="icode">n-</span> are the positive and
+            negative nodes, respectively. Note that voltage sources need not be grounded. Positive
+            current is assumed to flow from the positive node, through the source, to the negative
+            node. A current source of positive value forces current to flow out of the
+            <span class="icode">n+</span> node, through the source, and into the
+            <span class="icode">n-</span> node. Voltage sources, in addition to being used for
+            circuit excitation, are the `ammeters` for ngspice, that is, zero valued voltage sources
+            may be inserted into the circuit for the purpose of measuring current. They of course
+            have no effect on circuit operation since they represent short-circuits.
+        </p>
+        <p>
+            <span class="icode">DC/TRAN</span> is the dc and transient analysis value of the source.
+            If the source value is zero both for dc and transient analyses, this value may be
+            omitted. If the source value is time-invariant (e.g., a power supply), then the value
+            may optionally be preceded by the letters DC.
+        </p>
+        <p>
+            The keyword <span class="icode">AC</span> together with its value
+            <span class="icode">ACMAG</span> (and optional value <span class="icode">ACPHASE</span>)
+            are required when the voltage or current source is intended to become the small signal
+            source in an ac simulation. <span class="icode">ACMAG</span> is the ac magnitude and
+            <span class="icode">ACPHASE</span> is the ac phase. The voltage or current source then
+            will become a reference for all nodes. All small signal node amplitude values obtained
+            after the simulation have been divided by the reference
+            <span class="icode">ACMAG</span>. A typcal <span class="icode">ACMAG</span> value thus
+            may be unity. Any measured phase has been shifted by <span class="icode">ACPHASE</span>.
+            If <span class="icode">ACPHASE</span> is omitted, a value of zero is assumed. If the
+            source is not an ac small-signal input, the keyword <span class="icode">AC</span> and
+            the ac values are to be avoided.
+        </p>
+        <p>
+            <span class="icode">DISTOF1</span> and <span class="icode">DISTOF2</span> are the
+            keywords that specify that the independent source has distortion inputs at the
+            frequencies <span class="icode">F1</span> and <span class="icode">F2</span> respectively
+            (see the description of the <span class="icode">.DISTO</span> control line). The
+            keywords may be followed by an optional magnitude and phase. The default values of the
+            magnitude and phase are 1.0 and 0.0 respectively.
+        </p>
+        <p>
+            Any independent source can be assigned a time-dependent value for transient analysis. If
+            a source is assigned a time-dependent value, the time-zero value is used for dc
+            analysis. There are nine independent source functions:
+        </p>
+        <ul>
+            <li>pulse,</li>
+            <li>exponential,</li>
+            <li>sinusoidal,</li>
+            <li>piece-wise linear,</li>
+            <li>single-frequency FM,</li>
+            <li>AM,</li>
+            <li>transient noise,</li>
+            <li>random voltages or currents,</li>
+            <li>external data (only with ngspice shared library),</li>
+            <li>and RF port</li>
+        </ul>
+        <p>
+            If parameters other than source values are omitted or set to zero, the default values
+            shown are assumed. <span class="icode">TSTEP</span> is the printing increment and
+            <span class="icode">TSTOP</span> is the final time - see the
+            <span class="icode">.TRAN</span> control line for an explanation.
+        </p>
+
+        <h3 id="4.1.1">4.1.1 Pulse</h3>
+
+        <p>General form:</p>
+        <pre>PULSE(V1 V2 TD TR TF PW PER PHASE)</pre>
+
+        <p>Examples:</p>
+        <pre>VIN 3 0 PULSE(-1 1 2NS 2NS 2NS 50NS 100NS)</pre>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Default Value</th>
+                <th>Units</th>
+            </tr>
+            <tr>
+                <td>V1</td>
+                <td>Initial value</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>V2</td>
+                <td>Pulsed value</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>TD</td>
+                <td>Delay time</td>
+                <td>0.0</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>TR</td>
+                <td>Rise time</td>
+                <td>TSTEP</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>TF</td>
+                <td>Fall time</td>
+                <td>TSTEP</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>PW</td>
+                <td>Pulse width</td>
+                <td>TSTOP</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>PER</td>
+                <td>Period</td>
+                <td>TSTOP</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>PHASE</td>
+                <td>Phase</td>
+                <td>0.0</td>
+                <td>degrees</td>
+            </tr>
+        </table>
+
+        <p>A single pulse, without phase offset, is described by the following table:</p>
+
+        <table border class="ta-c">
+            <tr>
+                <td>Time</td>
+                <td>Value</td>
+            </tr>
+            <tr>
+                <td>0</td>
+                <td>V1</td>
+            </tr>
+            <tr>
+                <td>TD</td>
+                <td>V1</td>
+            </tr>
+            <tr>
+                <td>TD+TR</td>
+                <td>V2</td>
+            </tr>
+            <tr>
+                <td>TD+TR+PW</td>
+                <td>V2</td>
+            </tr>
+            <tr>
+                <td>TD+TR+PW+TF</td>
+                <td>V1</td>
+            </tr>
+            <tr>
+                <td>TSTOP</td>
+                <td>V1</td>
+            </tr>
+        </table>
+
+        <p>Intermediate points are determined by linear interpolation.</p>
+
+        <h3 id="4.1.2">4.1.2 Sinusoidal</h3>
+        <p>General form:</p>
+        <pre>SIN(VO VA FREQ TD THETA PHASE)</pre>
+        <p>Examples:</p>
+        <pre>VIN 3 0 SIN(0 1 100 MEG 1NS 1E10)</pre>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Default Value</th>
+                <th>Units</th>
+            </tr>
+            <tr>
+                <td>VO</td>
+                <td>Offset</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>VA</td>
+                <td>Amplitude</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>FREQ</td>
+                <td>Frequency</td>
+                <td>1/TSTOP</td>
+                <td>Hz</td>
+            </tr>
+            <tr>
+                <td>TD</td>
+                <td>Delay</td>
+                <td>0.0</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>THETA</td>
+                <td>Damping factor</td>
+                <td>0.0</td>
+                <td>1/sec</td>
+            </tr>
+            <tr>
+                <td>PHASE</td>
+                <td>Phase</td>
+                <td>0.0</td>
+                <td>degrees</td>
+            </tr>
+        </table>
+
+        <p>The shape of the waveform is described by the following formula:</p>
+
+        <!-- prettier-ignore -->
+        $$ \begin{aligned} 
+        V(t) = 
+        \begin{cases} 
+        {\rm VO} \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \
+        \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \
+        \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ {\rm if\ 0 \leq t \leq
+        TD} \\ {\rm VO + VA}e^{-(t-{\rm TD}){\rm THETA}}\ {\rm sin}(2\pi \cdot {\rm FREQ} \cdot
+        (t-{\rm TD}) + {\rm PHASE}) \ \ \ {\rm if\ TD \leq t \lt TSTOP} 
+        \end{cases} \tag{4.1}
+        \end{aligned} 
+        $$
+
+        <h3 id="4.1.3">4.1.3 Exponential</h3>
+        <p>General form:</p>
+        <pre>EXP(V1 V2 TD1 TAU1 TD2 TAU2)</pre>
+
+        <p>Examples:</p>
+        <pre>VIN 3 0 EXP (-4 -1 2NS 30NS 60NS 40NS)</pre>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Default Value</th>
+                <th>Units</th>
+            </tr>
+            <tr>
+                <td>V1</td>
+                <td>Initial value</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>V2</td>
+                <td>pulsed value</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>TD1</td>
+                <td>rise delay time</td>
+                <td>0.0</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>TAU1</td>
+                <td>rise time constant</td>
+                <td>TSTEP</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>TD2</td>
+                <td>fall delay time</td>
+                <td>TD1+TSTEP</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>TAU2</td>
+                <td>fall time constant</td>
+                <td>TSTEP</td>
+                <td>sec</td>
+            </tr>
+        </table>
+
+        <p>The shape of the waveform is described by the following formula:</p>
+
+        <p>Let ${\rm V21 = V2 - V1, V12 = V1 - V2}$:</p>
+
+        $$ \begin{aligned} V(t) = \begin{cases} {\rm V1} \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \
+        \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \
+        \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ {\rm if\ 0 \leq t \leq TD1} \\ {\rm V1 + V21}
+        \left( 1-e^{\rm - \frac{({\it t}-TD1)}{TAU1}} \right) \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \
+        \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ {\rm if\ TD1 \leq t \leq
+        TD2} \\ {\rm V1 + V21} \left( 1-e^{\rm - \frac{({\it t}-TD1)}{TAU1}} \right) + {\rm
+        V12}\left( 1-e^{\rm - \frac{({\it t}-TD2)}{TAU2}} \right) \ \ \ \ \ \ \ \ \ \ \ \ {\rm if\
+        TD2 \leq t \leq TSTOP} \end{cases} \tag{4.1} \end{aligned} $$
+
+        <p id="4.1.4">4.1.4 Piece-Wise Linear</p>
+        <p>General form:</p>
+        <pre>PWL(T1 V1 &lt;T2 V2 T3 V3 T4 V4 ... &gt;) &lt;r=value&gt; &lt;td=value&gt;</pre>
+        <p>Examples:</p>
+        <pre>
+VCLOCK 7 5 PWL(0 -7 10NS -7 11NS -3 17NS -3 18NS -7 50NS -7)
++ r=0 td =15NS</pre
+        >
+        <p>
+            Each pair of values $(T_i, V_i)$ specifies that the value of the source is $V_i$ (in
+            Volts or Amps) at time $= T_i$. The value of the source at intermediate values of time
+            is determined by using linear interpolation on the input values. The parameter $r$
+            determines a repeat time point. If $r$ is set to -1 or is not given, the whole sequence
+            of values $(T_i, V_i)$ is issued once only, then the output stays at its final value. If
+            $r = 0$, the whole sequence from time 0 to time Tn is repeated forever. If $r = {\rm
+            10ns}$, the sequence between 10ns and 50ns is repeated forever. The $r$ value has to be
+            one of the time points T1 to Tn of the PWL sequence. If td is given, the whole PWL
+            sequence is delayed by the value of $td$. Please note that for now $r$ and $td$ are
+            available only with the voltage source, not with the current source.
+        </p>
+
+        <h3 id="4.1.5">4.1.5 Single-Frequency FM</h3>
+        <p>General Form:</p>
+        <pre>SFFM(VO VA FC MDI FS PHASEC PHASES)</pre>
+        <p>Examples:</p>
+        <pre>V1 12 0 SFFM(0 1M 20K 5 1K)</pre>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Default Value</th>
+                <th>Units</th>
+            </tr>
+            <tr>
+                <td>VO</td>
+                <td>Offset</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>VA</td>
+                <td>Amplitude</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>FC</td>
+                <td>Carrier frequency</td>
+                <td>1/TSTOP</td>
+                <td>Hz</td>
+            </tr>
+            <tr>
+                <td>MDI</td>
+                <td>Modulation index</td>
+                <td>-</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>FS</td>
+                <td>Signal frequency</td>
+                <td>1/TSTOP</td>
+                <td>Hz</td>
+            </tr>
+            <tr>
+                <td>PHASEC</td>
+                <td>carrier phase</td>
+                <td>0</td>
+                <td>degrees</td>
+            </tr>
+            <tr>
+                <td>PHASES</td>
+                <td>signal phase</td>
+                <td>0</td>
+                <td>degrees</td>
+            </tr>
+        </table>
+
+        <p>The shape of the waveform is described by the following equation:</p>
+
+        $$ \begin{aligned} V(t) = {\rm VO+VA\ sin(2\pi \cdot FC \cdot t + MDI\ sin(2\pi \cdot FS
+        \cdot {\it t} + PHASES) + PHASEC)} \tag{4.3} \end{aligned} $$
+
+        <h3 id="4.1.6">4.1.6 Amplitude modulated source (AM)</h3>
+
+        <p>General form:</p>
+        <pre>AM(VA VO MF FC TD PHASES)</pre>
+        <p>Examples:</p>
+        <pre>V1 12 0 AM(0.5 1 20K 5 MEG 1m)</pre>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Default Value</th>
+                <th>Units</th>
+            </tr>
+            <tr>
+                <td>VA</td>
+                <td>Amplitude</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>VO</td>
+                <td>Offset</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>MF</td>
+                <td>Modulating frequency</td>
+                <td>-</td>
+                <td>Hz</td>
+            </tr>
+            <tr>
+                <td>FC</td>
+                <td>Carrier frequency</td>
+                <td>1/TSTOP</td>
+                <td>Hz</td>
+            </tr>
+            <tr>
+                <td>TD</td>
+                <td>Signal delay</td>
+                <td>-</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>PHASES</td>
+                <td>Phase</td>
+                <td>0.0</td>
+                <td>degrees</td>
+            </tr>
+        </table>
+
+        <p>The shape of the waveform is described by the following equation:</p>
+
+        $$ \begin{aligned} V(t) = {\rm VA ( VO + sin(2\pi \cdot MF \cdot t ) + PHASES )\ sin(2\pi
+        \cdot FC \cdot {\it t} + PHASES)} \tag{4.4} \end{aligned} $$
+
+        <h3 id="4.1.7">4.1.7 Transient noise source</h3>
+        <p>General form:</p>
+        <pre>TRNOISE(NA NT NALPHA NAMP RTSAM RTSCAPT RTSEMT)</pre>
+        <p>Examples:</p>
+        <pre>
+VNoiw 1 0 DC 0 TRNOISE(20n 0.5n 0 0)      $ white
+VNoi1of 1 0 DC 0 TRNOISE(0 10p 1.1 12p)   $ 1/f
+VNoiw1of 1 0 DC 0 TRNOISE(20 10p 1.1 12p) $ white and 1/f
+IALL 10 0 DC 0 trnoise(1m 1u 1.0 0.1m 15m 22u 50u)
+                                          $ white , 1/f, RTS</pre
+        >
+        <p>
+            Transient noise is an experimental feature allowing (low frequency) transient noise
+            injection and analysis. See Chapt. 15.3.11 for a detailed description.
+            <span class="icode">NA</span> is the Gaussian noise rms voltage amplitude,
+            <span class="icode">NT</span> is the time between sample values (breakpoints will be
+            enforced on multiples of this value). <span class="icode">NALPHA</span> (exponent to the
+            frequency dependency), <span class="icode">NAMP</span> (rms voltage or current
+            amplitude) are the parameters for 1/f noise, <span class="icode">RTSAM</span> the random
+            telegraph signal amplitude, <span class="icode">RTSCAPT</span> the mean of the
+            exponential distribution of the trap capture time, and
+            <span class="icode">RTSEMT</span> its emission time mean. White Gaussian, 1/f, and
+            <span class="icode">RTS</span> noise may be combined into a single statement.
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>Name</th>
+                <th>Parameter</th>
+                <th>Default Value</th>
+                <th>Units</th>
+            </tr>
+            <tr>
+                <td>NA</td>
+                <td>Rms noise amplitude (Gaussian)</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>NT</td>
+                <td>Time step</td>
+                <td>-</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>NALPHA</td>
+                <td>1/f exponent</td>
+                <td>0 &lt; $\alpha$ &lt; 2</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>NAMP</td>
+                <td>Amplitude (1/f)</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>RTSAM</td>
+                <td>Amplitude</td>
+                <td>-</td>
+                <td>V,A</td>
+            </tr>
+            <tr>
+                <td>RTSCAPT</td>
+                <td>Trap capture time</td>
+                <td>-</td>
+                <td>sec</td>
+            </tr>
+            <tr>
+                <td>RTSEMT</td>
+                <td>Trap emission time</td>
+                <td>-</td>
+                <td>sec</td>
+            </tr>
+        </table>
+
+        <p>
+            If you set <span class="icode">NT</span> and <span class="icode">RTSAM</span> to 0, the
+            noise option <span class="icode">TRNOISE ...</span> is ignored. Thus you may switch off
+            the noise contribution of an individual voltage source
+            <span class="icode">VNOI</span> by the command
+        </p>
+        <pre>
+alter @vnoi[trnoise] = [ 0 0 0 0 ] $ no noise
+alter @vrts[trnoise] = [ 0 0 0 0 0 0 0] $ no noise</pre
+        >
+        <p>
+            See Chapt. 17.5.3 for the alter command. You may switch off all
+            <span class="icode">TRNOISE</span> noise sources by setting
+        </p>
+        <pre>set notrnoise</pre>
+
+        <p>
+            to your <span class="icode">.spiceinit</span> file (for all your simulations) or into
+            your control section in front of the next run or tran command (for this specific and all
+            following simulations). The command
+        </p>
+        <pre>unset notrnoise</pre>
+
+        <p>
+            will reinstate all noise sources. The noise generators are implemented into the
+            independent <strong>voltage</strong> (vsrc) and <strong>current</strong> (isrc) sources.
+        </p>
+
+        <h3 id="4.1.8">4.1.8 Random voltage source</h3>
+        <p>
+            The <span class="icode">TRRANDOM</span> option yields statistically distributed voltage
+            values, derived from the ngspice random number generator. These values may be used in
+            the transient simulation directly within a circuit, e.g. for generating a specific noise
+            voltage, but especially they may be used in the control of behavioral sources (B, E, G
+            sources 5, voltage controllable A sources 12, capacitors 3.3.9, inductors 3.3.13, or
+            resistors 3.3.4) to simulate the circuit dependence on statistically varying device
+            parameters. A Monte-Carlo simulation may thus be handled in a single simulation run.
+        </p>
+
+        <p>General form:</p>
+        <pre>TRRANDOM(TYPE TS &lt;TD &lt;PARAM1 &lt;PARAM2&gt;&gt;&gt;)</pre>
+
+        <p>Examples:</p>
+        <pre>VR1 r1 0 dc 0 trrandom(2 10m 0 1) $ Gaussian</pre>
+
+        <p>
+            <span class="icode">TYPE</span> determines the random variates generated: 1 is uniformly
+            distributed, 2 Gaussian, 3 exponential, 4 Poisson. <span class="icode">TS</span> is the
+            duration of an individual voltage value. <span class="icode">TD</span> is a time delay
+            with 0 V output before the random voltage values start up.
+            <span class="icode">PARAM1</span> and <span class="icode">PARAM2</span> depend on the
+            type selected.
+        </p>
+
+        <table border class="ta-c">
+            <tr>
+                <th>TYPE</th>
+                <th>description</th>
+                <th>PARAM1</th>
+                <th>default</th>
+                <th>PARAM2</th>
+                <th>default</th>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>Uniform</td>
+                <td>Range</td>
+                <td>1</td>
+                <td>Offset</td>
+                <td>0</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>Gaussian</td>
+                <td>Standard Dev.</td>
+                <td>1</td>
+                <td>Mean</td>
+                <td>0</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>Exponential</td>
+                <td>Mean</td>
+                <td>1</td>
+                <td>Offset</td>
+                <td>0</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>Poisson</td>
+                <td>Lambda</td>
+                <td>1</td>
+                <td>Offset</td>
+                <td>0</td>
+            </tr>
+        </table>
+
+        <h3 id="4.1.9">4.1.9 External voltage or current input</h3>
+        <p>General form:</p>
+        <pre>EXTERNAL</pre>
+
+        <p>Examples:</p>
+        <pre>
+Vex 1 0 dc 0 external
+Iex i1 i2 dc 0 external &lt;m = xx&gt;</pre
+        >
+
+        <p>
+            Voltages or currents may be set from the calling process, if ngspice is compiled as a
+            shared library and loaded by the process. See Chapt. 19.6.3 for an explanation.
+        </p>
+
+        <h3 id="4.1.10">4.1.10 Arbitrary Phase Sources</h3>
+        <p>
+            ngspice supports arbitrary phase independent sources that output at TIME=0.0 a value
+            corresponding to some specified phase shift. Other versions of SPICE use the TD (delay
+            time) parameter to set phase-shifted sources to their time-zero value until the delay
+            time has elapsed. The ngspice phase parameter is specified in degrees and is included
+            after the SPICE3 parameters normally used to specify an independent source. Partial
+            examples of usage for pulse and sine waveforms are shown below:
+        </p>
+
+        <pre>
+* Phase shift is specified as final parameter
+* on the independent source cards. Phase shift for both of the
+* following is specified as +45 degrees
+*
+v1 1 0 0.0 sin(0 1 1k 0 0 45.0)
+r1 1 0 1k
+*
+v2 2 0 0.0 pulse(-1 1 0 1e-5 1e-5 5e-4 1e-3 45.0)
+r2 2 0 1k
+*</pre
+        >
+
+        <h3 id="4.1.11">4.1.11 RF Port</h3>
+        <p>
+            A voltage source VSRC may be defined as RF Port. To do so, there are at least two more
+            parameters required. The first is portnum (integer) which defines the VSRC as a RF Port.
+            Portnum of all VSRCs defined as RF ports must start from 1 and count up to the number of
+            RF ports. You cannot have duplicate portnums. Then you have Z0 (real) which defines the
+            internal impedance. If not provided, its default value is 50Ohm. When declaring a RF
+            ports, the VSRC now become a VSRC with Z0 Ohm in series. This extra resistor affects all
+            simulations.
+        </p>
+
+        <p>General form:</p>
+        <pre>DC 0 AC 1 portnum n1 &lt;z0 n2&gt;</pre>
+
+        <p>Examples:</p>
+        <pre>V1 in 0 dc 0 ac 1 portnum 1 z0 100</pre>
+
+        <p>
+            At least two ports are required for the S-parameter simulation with the command
+            <span class="icode">.sp</span>
+            (15.3.8). If portnum is not provided, the voltage source VRSC behaves as normal.
+        </p>
+
+        <h2 id="4.2">4.2 Linear Dependent Sources</h2>
+        <p>
+            Ngspice allows circuits to contain linear dependent sources characterized by any of the
+            four equations
+        </p>
+
+        $$ \begin{aligned} \begin{cases} i=gv \\ v=ev \\ i=fi \\ v=hi \end{cases} \end{aligned} $$
+
+        <p>
+            where $g$, $e$, $f$, and $h$ are constants representing transconductance, voltage gain,
+            current gain, and transresistance, respectively. Non-linear dependent sources for
+            voltages or currents (B, E, G) are described in Chapt. 5.
+        </p>
+
+        <h3 id="4.2.1">4.2.1 Gxxxx: Linear Voltage-Controlled Current Sources (VCCS)</h3>
+
+        <p>General form:</p>
+        <pre>GXXXXXXX N+ N- NC+ NC - VALUE &lt;m=val&gt;</pre>
+
+        <p>Examples:</p>
+        <pre>G1 2 0 5 0 0.1</pre>
+
+        <p>
+            <span class="icode">n+</span> and <span class="icode">n-</span> are the positive and
+            negative nodes, respectively. Current flow is from the positive node, through the
+            source, to the negative node. <span class="icode">nc+</span> and
+            <span class="icode">nc-</span> are the positive and negative controlling nodes,
+            respectively. <span class="icode">value</span> is the transconductance (in mhos).
+            <span class="icode">m</span> is an optional multiplier to the output current.
+            <span class="icode">val</span> may be a numerical value or an expression according to
+            2.9.5 containing references to other parameters. Instance parameters are listed in
+            chapt. 31.3.6.
+        </p>
+
+        <h3 id="4.2.2">4.2.2 Exxxx: Linear Voltage-Controlled Voltage Sources (VCVS)</h3>
+        <p>General form:</p>
+        <pre>EXXXXXXX N+ N- NC+ NC- VALUE</pre>
+
+        <p>Examples:</p>
+        <pre>E1 2 3 14 1 2.0</pre>
+
+        <p>
+            <span class="icode">n+</span> is the positive node, and <span class="icode">n-</span> is
+            the negative node. <span class="icode">nc+</span> and <span class="icode">nc-</span> are
+            the positive and negative controlling nodes, respectively.
+            <span class="icode">value</span> is the voltage gain. Instance parameters are listed in
+            chapt. 31.3.7.
+        </p>
+
+        <h3 id="4.2.3">4.2.3 Fxxxx: Linear Current-Controlled Current Sources (CCCS)</h3>
+        <p>General form:</p>
+        <pre>FXXXXXXX N+ N- VNAM VALUE &lt;m=val&gt;</pre>
+
+        <p>Examples:</p>
+        <pre>F1 13 5 VSENS 5 m=2</pre>
+
+        <p>
+            <span class="icode">n+</span> and <span class="icode">n-</span> are the positive and
+            negative nodes, respectively. Current flow is from the positive node, through the
+            source, to the negative node. <span class="icode">vnam</span> is the name of a voltage
+            source through which the controlling current flows. The direction of positive
+            controlling current flow is from the positive node, through the source, to the negative
+            node of <span class="icode">vnam</span>. <span class="icode">value</span> is the current
+            gain. <span class="icode">m</span> is an optional multiplier to the output current.
+            Instance parameters are listed in chapt. 31.3.4.
+        </p>
+
+        <h3 id="4.2.4">4.2.4 Hxxxx: Linear Current-Controlled Voltage Sources (CCVS)</h3>
+        <p>General form:</p>
+        <pre>HXXXXXXX N+ N- VNAM VALUE</pre>
+
+        <p>Examples:</p>
+        <pre>HX 5 17 VZ 0.5K</pre>
+
+        <p>
+            <span class="icode">n+</span> and <span class="icode">n-</span> are the positive and
+            negative nodes, respectively. <span class="icode">vnam</span> is the name of a voltage
+            source through which the controlling current flows. The direction of positive
+            controlling current flow is from the positive node, through the source, to the negative
+            node of <span class="icode">vnam</span>. <span class="icode">value</span> is the
+            transresistance (in ohms). Instance parameters are listed in chapt. 31.3.5.
+        </p>
+
+        <h3 id="4.2.5">4.2.5 Polynomial Source Compatibility</h3>
+        <p>
+            Dependent polynomial sources available in SPICE2G6 are fully supported in ngspice using
+            the XSPICE extension (25.1). The form used to specify these sources is shown in Table
+            4.1. For details on its usage please see Chapt. 5.5.
+        </p>
+
+        <table border class="ta-c">
+            <caption>
+                Dependent Polynomial Sources
+            </caption>
+            <tr>
+                <th>Source Type</th>
+                <th>Instace Card</th>
+            </tr>
+            <tr>
+                <td>POLYNOMIAL VCVS</td>
+                <td>EXXXXXXX N+ N- POLY(ND) NC1+ NC1- P0 (P1...)</td>
+            </tr>
+            <tr>
+                <td>POLYNOMIAL VCCS</td>
+                <td>GXXXXXXX N+ N- POLY(ND) NC1+ NC1- P0 (P1...)</td>
+            </tr>
+            <tr>
+                <td>POLYNOMIAL CCCS</td>
+                <td>FXXXXXXX N+ N- POLY(ND) VNAM1 !VNAM2...? P0 (P1...)</td>
+            </tr>
+            <tr>
+                <td>POLYNOMIAL CCVS</td>
+                <td>HXXXXXXX N+ N- POLY(ND) VNAM1 !VNAM2...? P0 (P1...)</td>
+            </tr>
+        </table>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        { left: "$$", right: "$$", display: true },
+                        { left: "$", right: "$", display: false },
+                    ],
+                });
+            });
+        </script>
+        <script>
+            window.onload = function () {
+                const katexs_obj = document.getElementsByClassName("katex");
+                Array.from(katexs_obj).filter((k) => k.setAttribute("translate", "no"));
+                const icode_obj = document.getElementsByClassName("icode");
+                Array.from(icode_obj).filter((k) => k.setAttribute("translate", "no"));
+                const pre_obj = document.getElementsByTagName("pre");
+                Array.from(pre_obj).filter((k) => k.setAttribute("translate", "no"));
+            };
+        </script>
+    </body>
+</html>
